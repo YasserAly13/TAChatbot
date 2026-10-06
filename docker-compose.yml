@@ -1,0 +1,106 @@
+# =============================================================================
+# AI Accelerator — full stack.
+#   web (Next.js BFF, :3000) -> api (FastAPI + SQLAlchemy 2 async, :8000)
+#
+# Each service builds from its own per-app Dockerfile/context (also buildable
+# standalone with `docker build apps/<svc>`). One shared bridge network; service
+# DNS names (web/api) resolve on it. NO database service, ever — DATABASE_URL
+# points at an Azure SQL database (created by the use-case Bicep deployment), supplied via env;
+# the api's engine is lazy, so the stack boots with the placeholder.
+#
+# Variable substitution (${VAR}) reads the root .env (copy from .env.example).
+# Leave APPLICATIONINSIGHTS_CONNECTION_STRING empty to run in degraded mode.
+# =============================================================================
+name: ai-accelerator
+
+services:
+  api:
+    build:
+      context: ./apps/api
+    image: ai-accelerator-api
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      PORT: 8000
+      OTEL_SERVICE_NAME: ai-accelerator-api
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      # Fixed-percentage trace sampling, 0..1 (empty = 1.0; see .env.example).
+      TRACE_SAMPLING_RATIO: ${TRACE_SAMPLING_RATIO:-}
+      # Telemetry ingestion auth mode (empty = connection_string; see .env.example).
+      TELEMETRY_AUTH_MODE: ${TELEMETRY_AUTH_MODE:-}
+      # Azure SQL Database (no local database container exists — ADR-0008).
+      # mssql+aioodbc scheme, ODBC Driver 18, validated TLS. Lazy engine:
+      # nothing connects until the first query.
+      DATABASE_URL: ${DATABASE_URL:-mssql+aioodbc://USER:PASSWORD@your-server.database.windows.net:1433/your-database?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no}
+      # Optional read-only external Azure SQL database (empty = not configured).
+      EXTERNAL_DATABASE_URL: ${EXTERNAL_DATABASE_URL:-}
+      # AI runtime (ADR-0009) — all optional; see .env.example.
+      AZURE_AI_ENDPOINT: ${AZURE_AI_ENDPOINT:-}
+      AZURE_AI_DEPLOYMENT: ${AZURE_AI_DEPLOYMENT:-}
+      AZURE_AI_EMBEDDING_DEPLOYMENT: ${AZURE_AI_EMBEDDING_DEPLOYMENT:-}
+      AZURE_AI_EMBEDDING_DIMENSIONS: ${AZURE_AI_EMBEDDING_DIMENSIONS:-1536}
+      AZURE_AI_API_VERSION: ${AZURE_AI_API_VERSION:-2024-10-21}
+      AZURE_AI_AUTH_MODE: ${AZURE_AI_AUTH_MODE:-managed_identity}
+      AZURE_AI_API_KEY: ${AZURE_AI_API_KEY:-}
+      AZURE_SEARCH_ENDPOINT: ${AZURE_SEARCH_ENDPOINT:-}
+      AZURE_SEARCH_INDEX: ${AZURE_SEARCH_INDEX:-}
+      AZURE_SEARCH_API_KEY: ${AZURE_SEARCH_API_KEY:-}
+      AI_REQUEST_TIMEOUT_SECONDS: ${AI_REQUEST_TIMEOUT_SECONDS:-60}
+      AI_MAX_RETRIES: ${AI_MAX_RETRIES:-2}
+      AI_ALLOW_TEXT_TO_SQL: ${AI_ALLOW_TEXT_TO_SQL:-false}
+    ports:
+      - '8000:8000'
+    networks:
+      - appnet
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health').status==200 else 1)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  web:
+    build:
+      context: ./apps/web
+    image: ai-accelerator-web
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      PORT: 3000
+      OTEL_SERVICE_NAME: ai-accelerator-web
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
+      # Fixed-percentage trace sampling, 0..1 (empty = 1.0; see .env.example).
+      TRACE_SAMPLING_RATIO: ${TRACE_SAMPLING_RATIO:-}
+      # Telemetry ingestion auth mode (empty = connection_string; see .env.example).
+      TELEMETRY_AUTH_MODE: ${TELEMETRY_AUTH_MODE:-}
+      # Upstream service for the BFF, via compose DNS (server-side only).
+      API_BASE_URL: http://api:8000
+    ports:
+      - '3000:3000'
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - appnet
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+networks:
+  appnet:
+    driver: bridge

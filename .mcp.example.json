@@ -1,0 +1,34 @@
+{
+  "_readme": [
+    "Optional MCP servers the toolkit knows how to use. Copy to `.mcp.json` (gitignored) and",
+    "remove the entries you don't want. Nothing here is required — every skill/agent works",
+    "without MCP; these only make some steps more direct.",
+    "",
+    "azure     — used by `incident-responder` (Log Analytics/KQL, Container Apps health).",
+    "            Needs an Azure login on the developer's machine; agents still never run `az`.",
+    "mssql     — used by `db-introspector` as a READ-ONLY view of the dev Azure SQL database.",
+    "            Point it at a login with SELECT-only grants (never the app's identity or the",
+    "            Entra admin); there is no local database. Pick any MSSQL MCP server the team",
+    "            trusts — the placeholder below is the shape, not an endorsement.",
+    "context7  — used by `docs-lookup` for version-aware library docs when available."
+  ],
+  "mcpServers": {
+    "azure": {
+      "command": "npx",
+      "args": ["-y", "@azure/mcp@latest", "server", "start"]
+    },
+    "mssql-readonly": {
+      "command": "npx",
+      "args": ["-y", "<mssql-mcp-server-package>"],
+      "env": {
+        "SERVER_NAME": "sql-<slug>-dev.database.windows.net",
+        "DATABASE_NAME": "<slug>",
+        "READONLY": "true"
+      }
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@latest"]
+    }
+  }
+}

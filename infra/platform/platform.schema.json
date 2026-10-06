@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-accelerator.local/schemas/platform-manifest.json",
+  "title": "Platform manifest — the shared, cloud-team-owned tier for one environment (ADR-0012)",
+  "description": "Describes the resources that pre-exist per environment and are shared by every use case. Written by the cloud team, committed as infra/platform/<env>.json, read by infra/main.<env>.bicepparam (loadJsonContent), the GitHub workflows and the init-project skill. Nothing in it is a secret.",
+  "type": "object",
+  "required": [
+    "environment",
+    "subscriptionId",
+    "location",
+    "resourceGroup",
+    "containerAppsEnvironment",
+    "containerRegistry",
+    "aiFoundry",
+    "aiSearch"
+  ],
+  "properties": {
+    "$schema": { "type": "string" },
+    "environment": { "enum": ["dev", "staging", "prod"] },
+    "subscriptionId": { "type": "string", "pattern": "^[0-9a-f-]{36}$" },
+    "location": {
+      "type": "string",
+      "description": "Region of the use-case resource group; owned resources are created here."
+    },
+    "resourceGroup": {
+      "type": "string",
+      "description": "The environment's resource group that hosts every use case's OWNED resources (D4')."
+    },
+    "containerAppsEnvironment": {
+      "type": "object",
+      "required": ["name", "resourceGroup"],
+      "properties": {
+        "name": { "type": "string" },
+        "resourceGroup": {
+          "type": "string",
+          "description": "Where the shared environment lives (may differ from resourceGroup)."
+        }
+      }
+    },
+    "containerRegistry": {
+      "type": "object",
+      "required": ["name", "loginServer", "resourceGroup"],
+      "properties": {
+        "name": { "type": "string" },
+        "loginServer": { "type": "string", "pattern": "\\.azurecr\\.io$" },
+        "resourceGroup": { "type": "string" }
+      }
+    },
+    "aiFoundry": {
+      "type": "object",
+      "required": ["name", "resourceGroup", "endpoint", "deployments"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The Microsoft.CognitiveServices/accounts (kind AIServices) resource name."
+        },
+        "resourceGroup": { "type": "string" },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "AZURE_AI_ENDPOINT for every use case."
+        },
+        "deployments": {
+          "type": "object",
+          "required": ["chat", "embedding", "embeddingDimensions"],
+          "properties": {
+            "chat": { "type": "string", "description": "Deployment name → AZURE_AI_DEPLOYMENT" },
+            "embedding": {
+              "type": "string",
+              "description": "Deployment name → AZURE_AI_EMBEDDING_DEPLOYMENT"
+            },
+            "embeddingDimensions": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Vector width of the embedding model → AZURE_AI_EMBEDDING_DIMENSIONS (1536 small / 3072 large)"
+            }
+          }
+        }
+      }
+    },
+    "aiSearch": {
+      "type": "object",
+      "required": ["name", "resourceGroup", "endpoint"],
+      "properties": {
+        "name": { "type": "string" },
+        "resourceGroup": { "type": "string" },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "AZURE_SEARCH_ENDPOINT; each use case owns one INDEX on this shared service."
+        }
+      }
+    },
+    "tags": { "type": "object", "additionalProperties": { "type": "string" } }
+  }
+}

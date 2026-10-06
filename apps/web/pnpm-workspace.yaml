@@ -1,0 +1,10 @@
+# pnpm 11 project settings for the AI Accelerator web app.
+# These transitive packages ship lifecycle build scripts that this app does not
+# need (Next has its own image pipeline; the OTel exporter uses protobufjs at
+# runtime without its native build). Explicitly disallow their builds and do
+# not fail the install over unreviewed build scripts, so installs are
+# deterministic and non-interactive in CI/Docker.
+strictDepBuilds: false
+allowBuilds:
+  protobufjs: false
+  sharp: false

@@ -1,0 +1,23 @@
+# Dependencies & lockfiles
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+uv.lock
+
+# Build output
+dist/
+.next/
+build/
+out/
+*.tsbuildinfo
+
+# Python — formatted by ruff, not prettier
+apps/api/
+**/*.py
+.venv/
+__pycache__/
+
+# Misc
+*.log
+.git/

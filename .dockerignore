@@ -1,0 +1,24 @@
+# Root .dockerignore (each app also has its own for its build context).
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.next/
+**/.next/
+**/generated/
+.venv/
+**/.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+.gitignore
+**/.env
+**/.env.*
+!**/.env.example
+*.log
+**/*.spec.ts
+**/test/
+.ruff_cache/
+.pytest_cache/
+.cache/

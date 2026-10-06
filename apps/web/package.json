@@ -1,0 +1,61 @@
+{
+  "name": "@ai-accelerator/web",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI Accelerator — Next.js BFF + UI. Part of the brandless starter template built by Orion Digital Solutions for the Diriyah Company AI team.",
+  "author": {
+    "name": "Orion Digital Solutions",
+    "url": "https://www.orion360.com/"
+  },
+  "contributors": [
+    {
+      "name": "Diriyah Company AI team",
+      "url": "https://www.diriyahcompany.sa/en/"
+    }
+  ],
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "api-types": "openapi-typescript ../../docs/reference/openapi.json -o src/lib/api-types.ts"
+  },
+  "dependencies": {
+    "@azure/identity": "4.13.1",
+    "@azure/monitor-opentelemetry": "1.18.1",
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/api-logs": "0.218.0",
+    "@opentelemetry/instrumentation": "0.218.0",
+    "@opentelemetry/instrumentation-runtime-node": "0.31.0",
+    "@opentelemetry/instrumentation-undici": "0.28.0",
+    "next": "16.2.6",
+    "pino": "10.3.1",
+    "react": "19.2.7",
+    "react-dom": "19.2.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.7",
+    "@types/node": "24.13.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitest/coverage-v8": "4.1.8",
+    "jsdom": "30.1.1",
+    "openapi-typescript": "7.13.0",
+    "postcss": "8.5.28",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "4.1.8"
+  }
+}

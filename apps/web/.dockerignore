@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.gitignore
+.env
+.env.*
+Dockerfile
+.dockerignore
+npm-debug.log*
+.npm
+.pnpm-store
+.pnpm-cache
+README.md

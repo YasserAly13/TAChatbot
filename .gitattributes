@@ -1,0 +1,24 @@
+# Line endings: LF in the repository AND in the working tree on every OS.
+# Windows installs default to core.autocrlf=true, which rewrites files as CRLF at checkout and
+# then breaks `bash scripts/doctor.sh`, `prettier --check`, the Claude hooks and `just` recipes
+# that call bash. `eol=lf` here overrides that per repository — no developer setting needed.
+* text=auto eol=lf
+
+# Shell scripts must stay LF even if someone forces CRLF globally.
+*.sh text eol=lf
+*.mjs text eol=lf
+
+# Windows-only scripts keep CRLF.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binaries — never touched.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary

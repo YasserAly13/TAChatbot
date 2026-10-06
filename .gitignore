@@ -1,0 +1,75 @@
+# ── Node ─────────────────────────────────────────────────────────────────────
+node_modules/
+.pnpm-store/
+.npm/
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Build output ─────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# ── Next.js ──────────────────────────────────────────────────────────────────
+.next/
+next-env.d.ts
+.vercel/
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ── Env files (keep the committed .env.example files) ────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Infra: Bicep (ADR-0012). Commit main.bicep, modules/, platform/ manifests and the three
+#    main.<env>.bicepparam (names only). Never commit credentials or per-developer overrides. ──
+infra/.env
+infra/.build/
+infra/*.local.bicepparam
+infra/main.bicepparam
+
+# ── Docker ───────────────────────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── OS / IDE ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# ── Logs / coverage / caches ─────────────────────────────────────────────────
+*.log
+coverage/
+coverage.xml
+.cache/
+
+# ── Test artifacts ───────────────────────────────────────────────────────────
+playwright-report/
+test-results/
+.playwright/
+# .claude/settings.json is COMMITTED on purpose: it carries the template's
+# permission rules (allow/deny) for every developer. Personal overrides go in
+# .claude/settings.local.json.
+.claude/settings.local.json
+docs/file-line-counts.md
+
+# Local MCP config (copy from .mcp.example.json); graphify output is personal tooling
+.mcp.json
+graphify-out/
+
+# Local session logs (contain Azure identifiers)
+CHAT-LOG-*.md

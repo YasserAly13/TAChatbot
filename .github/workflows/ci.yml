@@ -1,0 +1,210 @@
+name: AI Accelerator CI
+
+on:
+  push:
+    branches: [main, staging, development]
+  pull_request:
+    branches: [main, staging, development]
+  release:
+    types: [created]
+
+# Cancel superseded runs on the same PR/ref - saves CI minutes, faster feedback.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Least privilege (ci-cd-roadmap F4): every job reads code; nothing here writes.
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  BICEP_VERSION: 'v0.47.16'
+  UV_VERSION: '0.10.9'
+
+jobs:
+  # -- 0) Promotion-path guard (PRs only) -------------------------------------
+  #     Enforces the promotion flow that branch rulesets CANNOT (rulesets gate the
+  #     TARGET branch, not the SOURCE): PRs into `staging` must come from
+  #     `development`; PRs into `main` must come from `staging`. PRs into
+  #     `development` are unconstrained (any feature branch). For this to actually
+  #     block a merge it must be a REQUIRED status check on `staging` and `main`.
+  promotion-guard:
+    name: Promotion path guard
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce promotion path
+        env:
+          BASE: ${{ github.base_ref }}
+          HEAD: ${{ github.head_ref }}
+        run: |
+          case "$BASE" in
+            main)
+              if [ "$HEAD" != "staging" ]; then
+                echo "::error::PRs into 'main' must come from 'staging' (got '$HEAD')."
+                exit 1
+              fi ;;
+            staging)
+              if [ "$HEAD" != "development" ]; then
+                echo "::error::PRs into 'staging' must come from 'development' (got '$HEAD')."
+                exit 1
+              fi ;;
+            *)
+              echo "No promotion constraint for base '$BASE'." ;;
+          esac
+          echo "Promotion path OK: '$HEAD' -> '$BASE'."
+
+  # -- 1) Quality gates: format, lint, typecheck, contracts ----------------------
+  #     The mechanical half of the Definition of Done (rule 3/14): nothing merges
+  #     unformatted, unlinted, untyped, or with a stale API contract.
+  quality:
+    name: Format · lint · typecheck · contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: { node-version: '24' }
+      - run: corepack enable
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.14' }
+      - name: Install Bicep CLI
+        run: |
+          curl -sSLo bicep "https://github.com/Azure/bicep/releases/download/${{ env.BICEP_VERSION }}/bicep-linux-x64"
+          chmod +x bicep && sudo mv bicep /usr/local/bin/bicep && bicep --version
+
+      - name: Install (root tooling, web, api)
+        env:
+          UV_PYTHON_DOWNLOADS: never
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm -C apps/web install --frozen-lockfile
+          pip install uv==${{ env.UV_VERSION }}
+          uv sync --frozen --directory apps/api
+
+      - name: Prettier (repo-wide)
+        run: pnpm exec prettier --check .
+
+      - name: Ruff (api)
+        run: |
+          uv run --directory apps/api ruff format --check app alembic tests
+          uv run --directory apps/api ruff check app alembic tests
+
+      - name: TypeScript (web)
+        run: pnpm -C apps/web typecheck
+
+      # The use-case tier only (ADR-0012): compile + lint main.bicep and prove the three
+      # environment param files bind to it. No Azure access needed.
+      - name: Bicep build + lint (main + three param files)
+        run: |
+          bicep build infra/main.bicep --stdout >/dev/null
+          bicep lint infra/main.bicep
+          for e in dev staging prod; do bicep build-params infra/main.$e.bicepparam --stdout >/dev/null; done
+
+      # The API contract the web layer types against must be regenerated in the same PR
+      # as any change to the /v1 surface (rule 14). Both artefacts are compared.
+      - name: OpenAPI contract is current
+        run: |
+          uv run --directory apps/api python -m app.openapi_export /tmp/openapi.json
+          pnpm exec prettier --write /tmp/openapi.json >/dev/null
+          diff -u docs/reference/openapi.json /tmp/openapi.json || { echo "::error::docs/reference/openapi.json is stale — run 'make openapi'"; exit 1; }
+          pnpm -C apps/web exec openapi-typescript ../../docs/reference/openapi.json -o /tmp/api-types.ts >/dev/null
+          pnpm exec prettier --write /tmp/api-types.ts >/dev/null
+          diff -u apps/web/src/lib/api-types.ts /tmp/api-types.ts || { echo "::error::apps/web/src/lib/api-types.ts is stale — run 'make openapi'"; exit 1; }
+
+  # -- 2) "Code changed ⇒ tests changed" (PRs only) ----------------------------
+  #     A PR that touches application code without touching any test file fails,
+  #     unless it carries the `tests-not-needed` label (a reviewer's explicit call —
+  #     pure refactors, docs-only code comments, generated files).
+  tests-changed-gate:
+    name: Code change has tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with: { fetch-depth: 0 }
+      - name: Compare changed paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          changed=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          code=$(echo "$changed" | grep -E '^(apps/api/app/|apps/web/src/)' | grep -vE '(\.test\.tsx?$|/tests?/|api-types\.ts$|src/mocks/)' || true)
+          tests=$(echo "$changed" | grep -E '(^apps/api/tests/|\.test\.tsx?$|^apps/web/e2e/)' || true)
+          if [ -n "$code" ] && [ -z "$tests" ]; then
+            if echo ",$LABELS," | grep -q ',tests-not-needed,'; then
+              echo "::warning::Code changed without tests — allowed by the 'tests-not-needed' label."
+              exit 0
+            fi
+            echo "::error::Application code changed but no test file changed. Add tests or apply the 'tests-not-needed' label with a justification in the PR."
+            echo "$code"
+            exit 1
+          fi
+          echo "OK: $(echo "$code" | grep -c . || true) code file(s), $(echo "$tests" | grep -c . || true) test file(s) changed."
+
+  # -- 3) Tests + coverage (the CI gate) ---------------------------------------
+  #     Toolchain: pnpm (web) + uv (api), Node 24, Python 3.14.
+  #     Playwright e2e is intentionally NOT run here (manual/local only).
+  test:
+    name: Tests + coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with: { node-version: '24' }
+      - run: corepack enable
+
+      # Web (Next.js) - pnpm; Vitest (node + jsdom component tests). Playwright is manual.
+      - name: Web tests
+        working-directory: apps/web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test:cov
+
+      # Python backend - uv. Tests are offline (lazy SQLAlchemy engine; AI fakes; no Azure).
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.14' }
+      - name: Python tests
+        working-directory: apps/api
+        env:
+          UV_PYTHON_DOWNLOADS: never
+        run: |
+          pip install uv==${{ env.UV_VERSION }}
+          uv sync --frozen
+          uv run pytest --cov=app --cov-report=xml
+
+      # Upload both reports in ONE downloadable artifact, preserving the
+      # repo-relative paths. The `.artifact-root` anchor forces upload-artifact's
+      # least-common-ancestor to the repo root; without it the shared `apps/`
+      # prefix is stripped and the two reports land side by side unnamed.
+      - name: Anchor artifact paths at repo root
+        run: touch .artifact-root
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-reports
+          path: |
+            .artifact-root
+            apps/web/coverage/lcov.info
+            apps/api/coverage.xml
+
+  # -- 4) Builds: the artefacts that ship ---------------------------------------
+  #     `next build` proves the standalone output; the api image build proves the
+  #     ODBC Driver 18 install layer and the wheel-only dependency sync.
+  build:
+    name: Build (web standalone · api image)
+    runs-on: ubuntu-latest
+    needs: [quality]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with: { node-version: '24' }
+      - run: corepack enable
+      - name: Web build
+        working-directory: apps/web
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+      - name: api image build
+        run: docker build --tag ai-accelerator-api:ci apps/api
