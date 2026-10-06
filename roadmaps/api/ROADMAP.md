@@ -47,6 +47,7 @@ migrations are applied by Yasser Aly from a developer machine.
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`; required before 3.2 (an unauthenticated trigger)
   - 2026-10-06 — from the 2.1 security review, also cover: unauthenticated `POST /v1/conversations` with no rate limit or row cap, and no request-body size cap (memory/CPU before a 422) — accepted while local-only (ADR-0013), HIGH if ever exposed
+  - 2026-10-06 — from the 4.1 security review (HIGH, must close before any shared or deployed use): `POST …/ask` is an unauthenticated route that spends model tokens — no output cap (`max_tokens`) — closed in api 0.9.0 by `AI_MAX_OUTPUT_TOKENS` — no rate limit, no concurrency limit; each failed ask still stores the question; the first question becomes a title every user can list; stored answers replay as history (a successful jailbreak persists in a shared conversation)
   - 2026-10-06 — from the 2.2 security review, also cover: `GET /v1/conversations/{id}` returns every message unpaginated (a long thread = a large response; bounded today by the 4,000-character question cap in 4.1 and model-length answers); the conversation id appears in the framework's request span URL and uvicorn's access log (reaches App Insights if the exporter is on) — decide redaction vs accepted risk
 
 ## Phase 2 — Conversations (F2)
@@ -147,7 +148,7 @@ migrations are applied by Yasser Aly from a developer machine.
 
 ### 4.1 — Ask a question (JSON)
 
-- **status:** todo
+- **status:** done
 - **depends_on:** [2.2, 3.1]
 - **layers:** [endpoint, ai]
 - **acceptance:**
@@ -156,9 +157,19 @@ migrations are applied by Yasser Aly from a developer machine.
   - unknown id → `404 not_found`; empty or > 4,000 characters → `422 validation_error`; model/search failure → `503 ai_unavailable` with the user message kept
   - answers are grounded in retrieved context with citations; no question, answer or context in logs, spans, metrics or events; every model call inside `model_call_span()`
 - **how_to_test:**
-- **needs_human:** []
+  - `cd apps/api; uv run pytest` → all green (`tests/test_ask.py`: answer + citations, both messages stored, title from the first question, last 10 answered turns as history, unanswered questions dropped, 404, 422 boundaries, 503 on model failure / timeout / empty answer with the question kept and no content logged, 500 on a bug, missing-config 503)
+  - live, with `just dev` running, in PowerShell: `$c = Invoke-RestMethod -Method Post http://localhost:8000/v1/conversations` then `Invoke-RestMethod -Method Post "http://localhost:8000/v1/conversations/$($c.id)/ask" -ContentType application/json -Body '{"question":"How does trace_id propagation work?"}'` → an `answer` that cites `[1]`… and `citations` with titles and `docs/…` paths (allow up to a minute)
+  - `Invoke-RestMethod "http://localhost:8000/v1/conversations/$($c.id)"` → the title is now the question; `messages` holds the question and the answer with its citations
+  - ask a follow-up (`"And on the api side?"`) → the answer uses the first turn as context
+- **needs_human:**
+  - the live test calls `gpt-4.1` and the embedding deployment on dev (costs tokens) and writes rows to the dev database; it needs the 3.1 re-index done (it is)
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`; tests use the fake model + retriever seams (rule 70)
+  - 2026-10-06 — started by Claude
+  - 2026-10-06 — implemented; awaiting test by Yasser Aly. Files: `app/routers/conversations.py` (route, `AskIn`/`AskOut`, `get_answer_graph` async dependency, `_answered_turns`/`_as_history`, `_UPSTREAM_ERRORS`, `_ask_deadline_seconds`), `app/repositories/conversations.py` (`touch` never backwards, `title_from_question`), `tests/test_ask.py` (new), `tests/fakes.py` (shared fakes, moved out of `test_conversations.py`); `openapi.json` + web `api-types.ts`; `http-api.md`, root + api `CLAUDE.md`; api 0.7.0 → 0.8.0 + changelog. No prompt change. Reviews: code-reviewer + security-reviewer, nothing blocking; applied: one deadline for the whole ask (the search SDK has no timeout), only upstream failures → 503 (bugs → 500, missing config keeps its handler), answered turns only in history, empty answer → 503, async graph dependency, shared test fakes, two-turn / deadline / second-commit tests. Output-token cap decided afterwards (see the next note). Deferred to 1.2: rate/concurrency limits and the cost findings
+  - 2026-10-06 — confirmed by Yasser Aly: tests and the live ask against dev passed
+  - 2026-10-06 — follow-up approved by Yasser Aly: `AI_MAX_OUTPUT_TOKENS` (default 1024, `0` = no cap) caps every answer, sent as `max_completion_tokens` — api 0.9.0
+  - 2026-10-06 — for the web roadmap: the BFF ask route needs a hop timeout above 120 s (2 × `AI_REQUEST_TIMEOUT_SECONDS`), and the UI must disable input while an ask is pending (two concurrent asks on one conversation are not serialised)
 
 ### 4.2 — Ask with streaming (SSE)
 

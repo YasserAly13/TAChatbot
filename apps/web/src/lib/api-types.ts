@@ -111,10 +111,55 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/conversations/{conversation_id}/ask': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ask Question
+     * @description Ask a question in a conversation and get a grounded answer with citations.
+     *
+     *     The question is stored (and committed) before the model is called, so it is kept even when
+     *     the model or search fails (`503 ai_unavailable`). The last 10 messages go to the model as
+     *     history. A conversation still titled "New conversation" takes the question as its title.
+     */
+    post: operations['ask_question_v1_conversations__conversation_id__ask_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** AskIn */
+    AskIn: {
+      /** Question */
+      question: string;
+    };
+    /** AskOut */
+    AskOut: {
+      /** Answer */
+      answer: string;
+      /**
+       * Citations
+       * @description Documents the answer drew on; may be empty.
+       */
+      citations: components['schemas']['Citation'][];
+      /**
+       * Message Id
+       * Format: uuid
+       * @description The stored assistant message.
+       */
+      message_id: string;
+    };
     /** Citation */
     Citation: {
       /** Path */
@@ -438,6 +483,68 @@ export interface operations {
       };
       /** @description Unhandled error (`internal_error`) */
       500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+    };
+  };
+  ask_question_v1_conversations__conversation_id__ask_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['AskIn'];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AskOut'];
+        };
+      };
+      /** @description No such conversation (`not_found`) */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+      /** @description Validation failed (`validation_error`) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+      /** @description Unhandled error (`internal_error`) */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+      /** @description Model or search failed (`ai_unavailable`) */
+      503: {
         headers: {
           [name: string]: unknown;
         };

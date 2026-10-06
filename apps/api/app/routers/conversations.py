@@ -13,19 +13,28 @@ with an explicit offset and browsers do not read them as local time.
 
 from __future__ import annotations
 
+import asyncio
+import json
 import re
 from datetime import UTC, datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
+from azure.core.exceptions import AzureError
 from fastapi import APIRouter, Depends, Query, status
+from httpx import HTTPError
+from langchain_core.messages import AIMessage, AnyMessage, HumanMessage
+from openai import OpenAIError
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.config import get_ai_settings
+from app.ai.graph import ask, build_graph
+from app.ai.telemetry import error_kind
 from app.db import get_session
-from app.errors import ErrorBody, NotFound
+from app.errors import AIUnavailable, ErrorBody, NotFound
 from app.logging_config import get_logger
-from app.models.conversation import TITLE_MAX_LENGTH, Conversation, Message
+from app.models.conversation import DEFAULT_TITLE, TITLE_MAX_LENGTH, Conversation, Message
 from app.repositories import conversations as repo
 
 _log = get_logger("app.routers.conversations")
@@ -197,4 +206,130 @@ async def read_conversation(conversation_id: UUID, session: DbSession) -> Conver
     return ConversationDetail(
         **ConversationOut.of(conversation).model_dump(),
         messages=[MessageOut.of(m) for m in conversation.messages],
+    )
+
+
+# --- POST /v1/conversations/{conversation_id}/ask (roadmap api 4.1, F1) ----------------------
+
+QUESTION_MAX_LENGTH = 4000
+HISTORY_LIMIT = 10  # the last N messages sent to the model as conversation memory (B8 #4)
+
+_graph: Any = None
+
+
+async def get_answer_graph() -> Any:
+    """The compiled ``retrieve → answer`` graph, built once on first use (nothing connects until
+    a question is asked). A dependency so tests inject a fake model and retriever."""
+    global _graph
+    if _graph is None:
+        _graph = build_graph()
+    return _graph
+
+
+AnswerGraph = Annotated[Any, Depends(get_answer_graph)]
+
+
+class AskIn(BaseModel):
+    question: str = Field(min_length=1, max_length=QUESTION_MAX_LENGTH)
+
+    @field_validator("question", mode="before")
+    @classmethod
+    def _trim(cls, value: object) -> object:
+        return value.strip() if isinstance(value, str) else value
+
+
+class AskOut(BaseModel):
+    message_id: UUID = Field(description="The stored assistant message.")
+    answer: str
+    citations: list[Citation] = Field(description="Documents the answer drew on; may be empty.")
+
+
+def _answered_turns(messages: list[Message]) -> list[Message]:
+    """Only questions that got an answer, with that answer. A question whose ask failed (kept by
+    design, 503) is dropped, so a retry does not send the same question twice in a row."""
+    turns: list[Message] = []
+    for i, m in enumerate(messages):
+        if m.role == "assistant":
+            turns.append(m)
+        elif i + 1 < len(messages) and messages[i + 1].role == "assistant":
+            turns.append(m)
+    return turns
+
+
+def _as_history(messages: list[Message]) -> list[AnyMessage]:
+    """The last ``HISTORY_LIMIT`` answered messages, oldest first, as Human/AI turns — never a
+    system message (rule 70)."""
+    return [
+        HumanMessage(content=m.content) if m.role == "user" else AIMessage(content=m.content)
+        for m in _answered_turns(messages)[-HISTORY_LIMIT:]
+    ]
+
+
+# The upstream failures that mean "the AI is unavailable" — the model and embeddings (openai,
+# httpx), AI Search (azure-core) and the deadline. Anything else is a bug: it propagates as a
+# 500 with its location logged by UnhandledErrorMiddleware, instead of hiding behind a 503.
+_UPSTREAM_ERRORS: tuple[type[BaseException], ...] = (
+    OpenAIError,
+    HTTPError,
+    AzureError,
+    TimeoutError,
+)
+
+
+def _ask_deadline_seconds() -> float:
+    """One bound for the whole ask: the embedding + search + model calls each get
+    ``AI_REQUEST_TIMEOUT_SECONDS``; the search SDK call has no timeout of its own."""
+    return get_ai_settings().request_timeout_seconds * 2
+
+
+@router.post(
+    "/{conversation_id}/ask",
+    responses={
+        404: {"model": ErrorBody, "description": "No such conversation (`not_found`)"},
+        503: {"model": ErrorBody, "description": "Model or search failed (`ai_unavailable`)"},
+    },
+)
+async def ask_question(
+    conversation_id: UUID, body: AskIn, session: DbSession, graph: AnswerGraph
+) -> AskOut:
+    """Ask a question in a conversation and get a grounded answer with citations.
+
+    The question is stored (and committed) before the model is called, so it is kept even when
+    the model or search fails (`503 ai_unavailable`). The last 10 messages go to the model as
+    history. A conversation still titled "New conversation" takes the question as its title.
+    """
+    conversation = await repo.get_conversation_with_messages(session, conversation_id)
+    if conversation is None:
+        raise NotFound()
+    history = _as_history(list(conversation.messages))
+
+    if conversation.title == DEFAULT_TITLE:
+        repo.rename(conversation, repo.title_from_question(body.question))
+    await repo.add_message(session, conversation, role="user", content=body.question)
+    await session.commit()
+
+    try:
+        async with asyncio.timeout(_ask_deadline_seconds()):
+            answer = await ask(graph, body.question, history=history)
+    except _UPSTREAM_ERRORS as exc:
+        # bounded: a kind and a class name — never the message (it can echo the prompt)
+        _log.warning("ask failed", error_kind=error_kind(exc), error_class=type(exc).__name__)
+        raise AIUnavailable() from exc
+    if not answer.text.strip():
+        _log.warning("ask failed", error_kind="empty_answer", error_class="EmptyAnswer")
+        raise AIUnavailable()
+
+    message = await repo.add_message(
+        session,
+        conversation,
+        role="assistant",
+        content=answer.text,
+        citations=json.dumps(answer.sources, ensure_ascii=False),
+        token_count=answer.output_tokens,
+    )
+    await session.commit()
+    return AskOut(
+        message_id=message.id,
+        answer=answer.text,
+        citations=[Citation(**source) for source in answer.sources],
     )

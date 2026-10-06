@@ -136,4 +136,13 @@ def rename(conversation: Conversation, title: str) -> None:
 
 
 def touch(conversation: Conversation, when: datetime | None = None) -> None:
-    conversation.updated_at = when or utc_now()
+    """Bump ``updated_at`` — never backwards: add_message may already have pushed it past the
+    clock, and the next message's timestamp is derived from it."""
+    candidate = when or utc_now()
+    current = conversation.updated_at
+    conversation.updated_at = max(candidate, current) if current else candidate
+
+
+def title_from_question(question: str) -> str:
+    """The first question becomes the title: whitespace collapsed, cut to fit the column."""
+    return fit_title(" ".join(question.split()))

@@ -7,6 +7,39 @@ The two services version independently.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-10-06
+
+### Added
+
+- **`AI_MAX_OUTPUT_TOKENS`** (default `1024`, `0` = no cap) — caps each answer's length and
+  cost; the chat client sends it as `max_completion_tokens` (verified against
+  `langchain-openai` 1.6.6). Closes the "no output cap" cost finding from the 4.1 security
+  review; rate limiting stays with the 1.2 threat model. Documented in both `.env.example`s,
+  `docker-compose.yml` and `docs/reference/environment-variables.md`.
+
+## [0.8.0] — 2026-10-06
+
+### Added
+
+- **`POST /v1/conversations/{conversation_id}/ask`** (roadmap api 4.1, F1) — `{ "question" }`
+  (trimmed, 1–4,000 characters) → `200 { message_id, answer, citations: [{ title, path }] }`.
+  The question is stored and committed before the model runs; the last 10 messages are the
+  history; the answer is stored with its citations and output token count; the first question
+  renames a "New conversation". `404 not_found`, `422 validation_error`, `503 ai_unavailable`
+  (question kept, only a bounded `error_kind` logged).
+- `get_answer_graph` dependency — the `retrieve → answer` graph built once, overridable in
+  tests; repository `title_from_question`.
+- One deadline for the whole ask (2 × `AI_REQUEST_TIMEOUT_SECONDS`) — the AI Search SDK call has
+  no timeout of its own. Only upstream failures (OpenAI/httpx, Azure SDK, timeout) and an empty
+  answer become `503 ai_unavailable`; a missing AI configuration keeps its own 503 handler, and
+  a bug is a `500 internal_error` with its location logged. History holds answered turns only,
+  so a retried question is not sent twice.
+
+### Fixed
+
+- `touch` never moves `updated_at` backwards, so renaming right after a message cannot make the
+  next message's timestamp tie with it.
+
 ## [0.7.0] — 2026-10-06
 
 ### Changed
