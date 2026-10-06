@@ -1,6 +1,6 @@
 # Reference
 
-Lookup-grade reference material for the AI Accelerator's foundation surface — the HTTP
+Lookup-grade reference material for the Team Assistant's foundation surface — the HTTP
 endpoints, environment variables, and task-runner commands that exist today. This is
 reference (exact/exhaustive), not a tutorial; for narrative/how-to material see the sibling
 `docs/` sections linked below.
@@ -21,8 +21,8 @@ source (`apps/web/src/lib/trace.ts`, `apps/api/app/tracing.py`, each service's
 
 | Service    | Package / dist name             | Stack + version                                                                                                                                 | Port   | Trace origin | OTel service name (cloud role) |
 | ---------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------ | ------------------------------ |
-| `apps/web` | `@ai-accelerator/web` @ `0.0.0` | Next.js **16.2.6** (App Router, React 19.2.7) — BFF                                                                                             | `3000` | `0eb0`       | `ai-accelerator-web`           |
-| `apps/api` | `ai-accelerator-api` @ `0.1.0`  | Python **>=3.14** + FastAPI **0.136.3** + SQLAlchemy **2.0.54** (aioodbc 0.5.0 / pyodbc 5.3.0 on Azure SQL) + Alembic **1.20.0**, managed by uv | `8000` | `0c70`       | `ai-accelerator-api`           |
+| `apps/web` | `@team-assistant/web` @ `0.0.0` | Next.js **16.2.6** (App Router, React 19.2.7) — BFF                                                                                             | `3000` | `0eb0`       | `team-assistant-web`           |
+| `apps/api` | `team-assistant-api` @ `0.1.0`  | Python **>=3.14** + FastAPI **0.136.3** + SQLAlchemy **2.0.54** (aioodbc 0.5.0 / pyodbc 5.3.0 on Azure SQL) + Alembic **1.20.0**, managed by uv | `8000` | `0c70`       | `team-assistant-api`           |
 
 Notes:
 

@@ -1,6 +1,6 @@
-# AI Accelerator — Documentation
+# Team Assistant — Documentation
 
-The documentation hub for the **AI Accelerator** — the brandless starter template built by
+The documentation hub for the **Team Assistant** — the brandless starter template built by
 [Orion Digital Solutions](https://www.orion360.com/) for the [Diriyah Company](https://www.diriyahcompany.sa/en/) AI team. The root [`README.md`](../README.md) is the
 quick orientation (what the template is, how to run it); everything deeper lives here, organized
 by what you're trying to do.

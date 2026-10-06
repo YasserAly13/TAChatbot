@@ -33,11 +33,11 @@ interface ObservabilityState {
   reason: string;
 }
 
-const DEFAULT_SERVICE_NAME = 'ai-accelerator-web';
+const DEFAULT_SERVICE_NAME = 'team-assistant-web';
 
 /** Process-global keys (Symbol.for registry) shared across Next module graphs. */
-const INIT_FLAG = Symbol.for('ai-accelerator.web.observability.initialized');
-const STATE_KEY = Symbol.for('ai-accelerator.web.observability.state');
+const INIT_FLAG = Symbol.for('team-assistant.web.observability.initialized');
+const STATE_KEY = Symbol.for('team-assistant.web.observability.state');
 
 type GlobalStore = Record<symbol, unknown>;
 const globalStore = globalThis as unknown as GlobalStore;
@@ -116,7 +116,7 @@ function hasResourceAttribute(attrs: string, key: string): boolean {
  * resource detector). Append-only: operator-provided OTEL_SERVICE_NAME /
  * OTEL_RESOURCE_ATTRIBUTES values are never overridden.
  *
- * - service.name        -> App Insights cloud role name (default: ai-accelerator-web)
+ * - service.name        -> App Insights cloud role name (default: team-assistant-web)
  * - service.instance.id -> cloud role instance (container replica name, then
  *   HOSTNAME, then os.hostname() fallback)
  */

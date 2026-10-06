@@ -1,4 +1,4 @@
-"""Versioned API routers for the AI Accelerator api service (FastAPI).
+"""Versioned API routers for the Team Assistant api service (FastAPI).
 
 Business feature routers live here and attach to ``v1_router`` (see ``v1.py``),
 so every business endpoint is served under ``/v1``. Operational endpoints

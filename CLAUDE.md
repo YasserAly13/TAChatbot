@@ -1,17 +1,20 @@
-# CLAUDE.md — AI Accelerator
+# CLAUDE.md — Team Assistant
 
 Project-wide constitution for Claude. Follow the rules below on every task unless I explicitly
 override them. This file is the **map**, not the manual: load the deeper docs (per-app
 `CLAUDE.md`, `README.md`, `.claude/rules/`, `docs/`) **on demand** — don't bloat this file or
 assume it's the only source of truth.
 
-**What it is:** the **AI Accelerator** — a brandless starter/accelerator monorepo that the
-**Diriyah Company AI team** uses to speed up its AI projects, built and maintained by **Orion
-Digital Solutions** for the Diriyah Company. Teams clone it, rename it with `/rename-project`
-(see [`README.md`](README.md) → _Using this template_), and build the project's AI features
-on it; every
-project-identity string is a placeholder (`AI Accelerator` / `ai-accelerator` / `@ai-accelerator/*`),
-targeting Azure deployment via **Bicep** on a **shared, cloud-team-owned platform** (Foundry, Container Apps Environment, Container Registry, AI Search service pre-exist per environment; this project deploys only its own container apps, database, storage, Key Vault and Search index — ADR-0012; see [`README.md`](README.md) → _Scope & delivery status_). The repo is a polyglot
+**What it is:** **Team Assistant** (slug `team-assistant`, npm scope `@team-assistant/*`) — an
+internal chat assistant that answers the team's questions from its own documentation
+(`docs/**/*.md`, indexed in Azure AI Search) with citations, and keeps conversation history in
+Azure SQL. Internal-only, no user auth (Okta later). Built on the **AI Accelerator** — the
+starter monorepo the **Diriyah Company AI team** uses for its AI projects, built and maintained
+by **Orion Digital Solutions** for the Diriyah Company. **Infrastructure:** `dev` only, every Azure
+resource is **pre-provisioned** (Foundry, AI Search, Azure SQL — names in
+[`ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) → B1) and this project **deploys no
+infrastructure in any environment**; the template's Bicep tier (ADR-0012, `infra/`) is kept but
+not used. The repo is a polyglot
 monorepo of two independent services — `apps/web` (Next.js BFF + UI) and `apps/api`
 (FastAPI, the **sole backend** — ADR-0003) — wired with **end-to-end `trace_id` propagation**
 and **Azure Monitor / OpenTelemetry** observability in both. The browser only talks to the `web`

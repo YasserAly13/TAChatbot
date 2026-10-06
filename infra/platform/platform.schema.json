@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ai-accelerator.local/schemas/platform-manifest.json",
+  "$id": "https://team-assistant.local/schemas/platform-manifest.json",
   "title": "Platform manifest — the shared, cloud-team-owned tier for one environment (ADR-0012)",
   "description": "Describes the resources that pre-exist per environment and are shared by every use case. Written by the cloud team, committed as infra/platform/<env>.json, read by infra/main.<env>.bicepparam (loadJsonContent), the GitHub workflows and the init-project skill. Nothing in it is a secret.",
   "type": "object",

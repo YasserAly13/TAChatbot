@@ -129,7 +129,7 @@ Application Map and in every table's `AppRoleName` / `AppRoleInstance` column:
 
 | Attribute             | App Insights concept | Default                                                 |
 | --------------------- | -------------------- | ------------------------------------------------------- |
-| `service.name`        | cloud role name      | `ai-accelerator-web` / `ai-accelerator-api`             |
+| `service.name`        | cloud role name      | `team-assistant-web` / `team-assistant-api`             |
 | `service.instance.id` | cloud role instance  | `CONTAINER_APP_REPLICA_NAME` → `HOSTNAME` → OS hostname |
 
 Both are set through the **standard env vars** (`OTEL_SERVICE_NAME`,
@@ -256,7 +256,7 @@ a single `operation_Id` across `AppRequests` / `AppDependencies` / `AppTraces` w
 
 ## Metrics and custom events
 
-`getMeter(scope)` / `get_meter(scope)` returns the namespaced meter `ai-accelerator.<scope>` from
+`getMeter(scope)` / `get_meter(scope)` returns the namespaced meter `team-assistant.<scope>` from
 the **global** MeterProvider. In degraded mode no provider is registered and the OTel API hands
 back a no-op meter — so feature code **records unconditionally and never null-checks
 telemetry**. Every record helper is best-effort and swallows its own errors; a metric can never
@@ -266,9 +266,9 @@ Starter instruments (implemented in `src/lib/metrics.ts` · `app/metrics.py`):
 
 | Instrument                                | Kind           | Attributes                              | Recorded in                                  |
 | ----------------------------------------- | -------------- | --------------------------------------- | -------------------------------------------- |
-| `ai-accelerator.http.server.duration`     | histogram (ms) | `route_class`, `method`, `status_class` | the api's trace middleware / web's `withBff` |
-| `ai-accelerator.http.client.hop.duration` | histogram (ms) | `target`, `outcome`                     | the traced outbound wrappers                 |
-| `ai-accelerator.bff.upstream.failures`    | counter        | `target`, `network_error` \| `http_5xx` | `fetchUpstream` (`web` only)                 |
+| `team-assistant.http.server.duration`     | histogram (ms) | `route_class`, `method`, `status_class` | the api's trace middleware / web's `withBff` |
+| `team-assistant.http.client.hop.duration` | histogram (ms) | `target`, `outcome`                     | the traced outbound wrappers                 |
+| `team-assistant.bff.upstream.failures`    | counter        | `target`, `network_error` \| `http_5xx` | `fetchUpstream` (`web` only)                 |
 
 Runtime health metrics register at init: `instrumentation-runtime-node` on Node (event-loop
 lag/utilization, GC, heap) and the system-metrics instrumentor on Python with a **runtime-only**

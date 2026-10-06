@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # =============================================================================
-# ai-accelerator-api — multi-stage build (build context = apps/api).
+# team-assistant-api — multi-stage build (build context = apps/api).
 # uv is installed via pip (pinned) so the build does not depend on an external
 # container registry. Runtime carries only the synced venv + app code.
 # =============================================================================
@@ -69,7 +69,7 @@ WORKDIR /app
 COPY --from=builder --chown=appuser:app /app/.venv /app/.venv
 COPY --chown=appuser:app app /app/app
 # Alembic toolchain ships in the image so a HUMAN can run migrations from it
-# (e.g. `docker run --rm -e DATABASE_URL=... ai-accelerator-api alembic upgrade head`).
+# (e.g. `docker run --rm -e DATABASE_URL=... team-assistant-api alembic upgrade head`).
 # The service itself never runs migrations; CMD is unchanged.
 COPY --chown=appuser:app alembic.ini /app/alembic.ini
 COPY --chown=appuser:app alembic /app/alembic

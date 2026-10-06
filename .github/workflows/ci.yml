@@ -1,4 +1,4 @@
-name: AI Accelerator CI
+name: Team Assistant CI
 
 on:
   push:
@@ -207,4 +207,4 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
       - name: api image build
-        run: docker build --tag ai-accelerator-api:ci apps/api
+        run: docker build --tag team-assistant-api:ci apps/api

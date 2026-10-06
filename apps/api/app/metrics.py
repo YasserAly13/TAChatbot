@@ -1,6 +1,6 @@
 """Custom-metric helpers (Phase 3 — see .claude/rules/60-observability.md).
 
-``get_meter()`` returns namespaced meters ("ai-accelerator.<scope>") from the
+``get_meter()`` returns namespaced meters ("team-assistant.<scope>") from the
 GLOBAL MeterProvider. In degraded mode no provider is registered, so the OTel
 API hands back its no-op proxy meter — feature code records metrics
 unconditionally and never null-checks telemetry.
@@ -19,17 +19,17 @@ from urllib.parse import urlsplit
 from opentelemetry import metrics as _otel_metrics
 from opentelemetry.metrics import Histogram, Meter
 
-_METER_PREFIX = "ai-accelerator"
+_METER_PREFIX = "team-assistant"
 
-_SERVER_DURATION_NAME = "ai-accelerator.http.server.duration"
-_HOP_DURATION_NAME = "ai-accelerator.http.client.hop.duration"
+_SERVER_DURATION_NAME = "team-assistant.http.server.duration"
+_HOP_DURATION_NAME = "team-assistant.http.client.hop.duration"
 
 _server_duration: Histogram | None = None
 _hop_duration: Histogram | None = None
 
 
 def get_meter(scope: str) -> Meter:
-    """Namespaced meter accessor: get_meter("http") → meter "ai-accelerator.http"."""
+    """Namespaced meter accessor: get_meter("http") → meter "team-assistant.http"."""
     return _otel_metrics.get_meter(f"{_METER_PREFIX}.{scope}")
 
 

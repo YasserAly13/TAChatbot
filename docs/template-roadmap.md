@@ -1,4 +1,4 @@
-# Template roadmap — making the AI Accelerator carry a full AI project
+# Template roadmap — making the Team Assistant carry a full AI project
 
 > **What this is.** The backlog of changes to the **template itself** (not to any project built on
 > it) so that a small team, with Claude doing most of the coding, can go from _clone → rename →

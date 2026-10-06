@@ -249,7 +249,7 @@ Structured JSON logs exist in both services. This phase makes them _complete and
       (`<project>.<scope>`), silently no-op in degraded mode, so feature code never
       null-checks telemetry.
       _Accept:_ helper + tests in each service; usage documented.
-      _Status 2026-07-26:_ `getMeter(scope)` / `get_meter(scope)` → `ai-accelerator.<scope>` in
+      _Status 2026-07-26:_ `getMeter(scope)` / `get_meter(scope)` → `team-assistant.<scope>` in
       `apps/web/src/lib/metrics.ts`, `apps/api/app/metrics.py`;
       degraded mode rides the OTel no-op proxy meter (verified); all record helpers are
       best-effort (throwing provider tests). Documented in rule 60 → _Metrics & events_.
@@ -266,10 +266,10 @@ Structured JSON logs exist in both services. This phase makes them _complete and
       route-class + status-class per service, BFF upstream-failure counter, chain-hop
       duration. Extend per feature later.
       _Accept:_ metrics visible in `customMetrics` after a local run against a real resource.
-      _Status 2026-07-26:_ implemented — `ai-accelerator.http.server.duration` (both trace
-      middlewares/wrappers, route PATTERN as route_class), `ai-accelerator.http.client.hop.duration`
+      _Status 2026-07-26:_ implemented — `team-assistant.http.server.duration` (both trace
+      middlewares/wrappers, route PATTERN as route_class), `team-assistant.http.client.hop.duration`
       (in `fetchUpstream`/`traced_client` event hooks),
-      `ai-accelerator.bff.upstream.failures` (web; `network_error`/`http_5xx`). ⏳ `customMetrics`
+      `team-assistant.bff.upstream.failures` (web; `network_error`/`http_5xx`). ⏳ `customMetrics`
       visibility check pending a real resource [HUMAN].
 - [x] **Custom events for milestones.** A `trackEvent(name, attrs)` helper emitting App
       Insights `customEvents` (request-correlated, no identifying attributes), ready for

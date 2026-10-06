@@ -1,5 +1,5 @@
 """Custom-metric helper tests (Phase 3, offline):
-- namespaced meters ("ai-accelerator.<scope>") from the global provider
+- namespaced meters ("team-assistant.<scope>") from the global provider
 - bounded status classes / outbound-target labels
 - starter instruments record with bounded attributes only
 - recording is best-effort: a throwing meter never breaks the caller
@@ -59,7 +59,7 @@ def fake_metrics(monkeypatch: pytest.MonkeyPatch) -> _FakeMetricsModule:
 class TestGetMeter:
     def test_namespaces_meters(self, fake_metrics: _FakeMetricsModule) -> None:
         metrics_mod.get_meter("billing")
-        assert "ai-accelerator.billing" in fake_metrics.meter_names
+        assert "team-assistant.billing" in fake_metrics.meter_names
 
 
 class TestStatusClass:
@@ -93,7 +93,7 @@ class TestRecordServerDuration:
         metrics_mod.record_server_duration("/v1/things/{id}", "GET", 200, 12.5)
         assert fake_metrics.recorded == [
             {
-                "instrument": "ai-accelerator.http.server.duration",
+                "instrument": "team-assistant.http.server.duration",
                 "value": 12.5,
                 "attributes": {
                     "route_class": "/v1/things/{id}",
@@ -116,7 +116,7 @@ class TestRecordHopDuration:
         metrics_mod.record_hop_duration("api", "2xx", 5.0)
         assert fake_metrics.recorded == [
             {
-                "instrument": "ai-accelerator.http.client.hop.duration",
+                "instrument": "team-assistant.http.client.hop.duration",
                 "value": 5.0,
                 "attributes": {"target": "api", "outcome": "2xx"},
             }

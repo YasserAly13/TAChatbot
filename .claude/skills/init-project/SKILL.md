@@ -1,6 +1,6 @@
 ---
 name: init-project
-description: Turn a fresh clone of the AI Accelerator into a named project in one pass — rename the placeholders (via rename-project), record the project's identity and Azure landing zone (the cloud team's platform manifests per environment, the use case's resource names, auth mode), seed ARCHITECTURE.md Part B, docs/design/ and the roadmaps/ folders, write the three Bicep param files, and remove the template apparatus. Run once, right after cloning, by the project admin. Supersedes running rename-project alone.
+description: Turn a fresh clone of the Team Assistant into a named project in one pass — rename the placeholders (via rename-project), record the project's identity and Azure landing zone (the cloud team's platform manifests per environment, the use case's resource names, auth mode), seed ARCHITECTURE.md Part B, docs/design/ and the roadmaps/ folders, write the three Bicep param files, and remove the template apparatus. Run once, right after cloning, by the project admin. Supersedes running rename-project alone.
 ---
 
 # Initialise a project
@@ -41,7 +41,7 @@ clears `apps/web/.next`, verifies zero leftovers).
   from the schema in `roadmaps/README.md` with a header, an empty `## Phase 1 — Foundation`
   and a first infra item `1.1 — First dev apply` (`needs_human`: the apply itself).
 - Root `README.md` first paragraph and `CLAUDE.md` "What it is": the project's name and
-  description in place of the template blurb (keep the "built on the AI Accelerator" line).
+  description in place of the template blurb (keep the "built on the Team Assistant" line).
 
 ## 4. Landing-zone files (committed — names only, no secrets)
 

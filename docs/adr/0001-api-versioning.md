@@ -46,7 +46,7 @@ container/Azure health probes target fixed paths.
 - **Header versioning (`X-API-Version`)** — rejected: the version is invisible in
   logs/`curl`/traces, is harder to test and grep, and is awkward to thread through the
   BFF chain. Poor fit for an observability-first, polyglot platform.
-- **Accept media-type versioning (`application/vnd.ai-accelerator.v1+json`)** — rejected: the
+- **Accept media-type versioning (`application/vnd.team-assistant.v1+json`)** — rejected: the
   most REST-purist option but by far the most complex to implement, document, and
   enforce consistently across three stacks, for no benefit at this stage.
 - **No versioning / "add it when we need it"** — rejected: retrofitting a version

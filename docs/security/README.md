@@ -1,6 +1,6 @@
-# Security — AI Accelerator
+# Security — Team Assistant
 
-This is the security posture overview for the **AI Accelerator**: what the platform actually
+This is the security posture overview for the **Team Assistant**: what the platform actually
 does today to protect the BFF boundary, secrets, outbound calls, the database layer, and
 containers, and what still needs work before a project built on it can add its own auth. It
 summarizes and links to the enforced rule file rather than duplicating it — if this page and

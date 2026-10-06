@@ -1,4 +1,4 @@
-# pnpm 11 project settings for the AI Accelerator web app.
+# pnpm 11 project settings for the Team Assistant web app.
 # These transitive packages ship lifecycle build scripts that this app does not
 # need (Next has its own image pipeline; the OTel exporter uses protobufjs at
 # runtime without its native build). Explicitly disallow their builds and do

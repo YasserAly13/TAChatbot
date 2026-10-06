@@ -1,5 +1,5 @@
 ---
-description: Rename the AI Accelerator placeholders to the real project name, repo-wide.
+description: Rename the Team Assistant placeholders to the real project name, repo-wide.
 argument-hint: <new project display name>
 ---
 
