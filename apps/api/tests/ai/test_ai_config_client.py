@@ -165,3 +165,14 @@ class TestClientFactory:
         assert client_mod.get_chat_model() is first
         client_mod._reset_for_tests()
         assert client_mod.get_chat_model() is not first
+
+
+def test_settings_repr_never_shows_a_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AZURE_AI_API_KEY", "ai-key-must-not-show")
+    monkeypatch.setenv("AZURE_SEARCH_API_KEY", "search-key-must-not-show")
+
+    text = repr(get_ai_settings())
+
+    assert "must-not-show" not in text
+    assert "api_key" not in text and "search_api_key" not in text
+    assert get_ai_settings().api_key == "ai-key-must-not-show"  # still readable in code

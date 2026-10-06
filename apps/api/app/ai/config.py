@@ -12,7 +12,7 @@ cache it at import (tests monkeypatch the environment).
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 AUTH_MODES = ("managed_identity", "api_key")
 DEFAULT_API_VERSION = "2024-10-21"
@@ -62,10 +62,11 @@ class AISettings:
     embedding_dimensions: int
     api_version: str
     auth_mode: str
-    api_key: str | None
+    # Secrets never appear in repr() — a logged or printed settings object shows no key.
+    api_key: str | None = field(repr=False)
     search_endpoint: str | None
     search_index: str | None
-    search_api_key: str | None
+    search_api_key: str | None = field(repr=False)
     request_timeout_seconds: float
     max_retries: int
     allow_text_to_sql: bool
