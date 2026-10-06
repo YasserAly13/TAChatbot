@@ -13,7 +13,7 @@ starter template built by [Orion Digital Solutions](https://www.orion360.com/) f
 
 ```bash
 uv sync
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 (`apps/api/.env` — a copy of `.env.example` — is **optional**: `app.main` loads it via
@@ -47,12 +47,15 @@ first query, so the baseline boots with the placeholder URL. Routes get a sessio
 refuses anything but `SELECT`. DB dependency spans come from the SQLAlchemy instrumentation
 registered in `app/observability.py`.
 
-Alembic is wired but idle (`alembic/versions/` is empty). Migrations are **never run by this
-project or its agents** — applying one is the Environment-gated `migrate.yml` workflow or a
-deliberate human step:
+Models: `Conversation` and `Message` (`app/models/conversation.py`, tables `conversations` and
+`messages` — `docs/design/db-design.md`), created by revision `7c1d4e2a9b30`. Migrations are
+**never run by this project's agents** — applying one is a deliberate step by a named human
+from a developer machine against dev (ADR-0013):
 
 ```bash
-uv run alembic heads                              # head revisions (none today)
+uv run alembic heads                              # head revision (7c1d4e2a9b30)
+uv run alembic current                            # what the dev database is at — needs the dev DB
+uv run alembic upgrade head                       # APPLY — the named human only, never an agent
 uv run alembic upgrade head --sql                 # offline T-SQL for review — no DB needed
 uv run alembic revision --autogenerate -m "msg"   # needs the dev Azure SQL database reachable
 uv run alembic check                              # model/migration drift — needs the dev DB

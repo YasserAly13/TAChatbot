@@ -2,10 +2,14 @@
 
 Wire format (one ``event:`` + one JSON ``data:`` line per event, blank-line terminated):
 
-    event: sources   data: {"sources": ["docs/a.md"], "count": 3}   — after retrieval
+    event: sources   data: {"sources": [{"title": "A", "path": "docs/a.md"}], "count": 3}
+                                                                    — after retrieval
     event: token     data: {"text": "partial "}                     — per model token chunk
     event: done      data: {"sources": [...], "input_tokens": 12, "output_tokens": 40}
     event: error     data: {"error_kind": "timeout"}                — then the stream ends
+
+``sources`` lists each cited document once, ``{title, path}`` (B8 #7); ``count`` is the number of
+retrieved chunks.
 
 Use from a ``/v1`` route::
 
@@ -27,7 +31,7 @@ from typing import Any
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessageChunk, AnyMessage, HumanMessage
 
-from app.ai.graph import GraphState, _message_text, unique_sources
+from app.ai.graph import GraphState, Source, _message_text, unique_sources
 from app.ai.telemetry import error_kind, extract_usage
 
 SSE_MEDIA_TYPE = "text/event-stream"
@@ -50,7 +54,7 @@ async def stream_answer(
         "messages": [*(history or []), HumanMessage(content=question)],
         "context": [],
     }
-    sources: list[str] = []
+    sources: list[Source] = []
     input_tokens: int | None = None
     output_tokens: int | None = None
     try:

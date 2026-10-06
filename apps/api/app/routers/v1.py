@@ -24,11 +24,12 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.errors import ErrorBody
+from app.routers import conversations
 
 API_V1_PREFIX = "/v1"
 
 # Business feature routers attach to this router (see module docstring). It is
-# included by app/main.py. Empty until the first business feature lands.
+# included by app/main.py.
 v1_router = APIRouter(
     prefix=API_V1_PREFIX,
     # The error contract (app/errors.py) — documented once here, inherited by every
@@ -38,3 +39,6 @@ v1_router = APIRouter(
         500: {"model": ErrorBody, "description": "Unhandled error (`internal_error`)"},
     },
 )
+
+# /v1/conversations — create and list (roadmap api 2.1)
+v1_router.include_router(conversations.router)

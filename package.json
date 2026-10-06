@@ -18,7 +18,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "concurrently -k -n web,api -c green,magenta \"pnpm -C apps/web dev\" \"uv run --directory apps/api uvicorn app.main:app --reload --host 0.0.0.0 --port 8000\"",
+    "dev": "concurrently -k -n web,api -c green,magenta \"pnpm -C apps/web dev\" \"uv run --directory apps/api uvicorn app.main:app --reload --host 127.0.0.1 --port 8000\"",
     "build": "pnpm -C apps/web build",
     "fmt": "prettier --write . && uvx ruff@0.15.16 format apps/api && uvx ruff@0.15.16 check --fix apps/api"
   },

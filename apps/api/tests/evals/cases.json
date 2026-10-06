@@ -7,7 +7,7 @@
     ],
     "scripted_answer": "The api listens on port 8000 [1].",
     "expect_contains": ["8000", "[1]"],
-    "expect_sources": ["docs/api.md"]
+    "expect_sources": [{ "title": "api.md", "path": "docs/api.md" }]
   },
   {
     "id": "no-context-admits-unknown",

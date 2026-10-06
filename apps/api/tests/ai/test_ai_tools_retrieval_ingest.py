@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -24,6 +25,7 @@ from app.ai.tools.retrieve import (
     CONTENT_FIELD,
     ID_FIELD,
     SOURCE_FIELD,
+    TITLE_FIELD,
     VECTOR_FIELD,
     AzureSearchRetriever,
     NullRetriever,
@@ -129,11 +131,12 @@ def test_azure_search_retriever_runs_hybrid_query() -> None:
     embeddings = FakeEmbeddings(dimensions=3)
     retriever = AzureSearchRetriever(client, embeddings)
     chunks = asyncio.run(retriever.retrieve("hello", top_k=3))
-    assert chunks == [{"id": "a", "content": "text a", "source": "s1", "score": 1.5}]
+    # no stored title (indexed before the field existed): the file name of the source
+    assert chunks == [{"id": "a", "content": "text a", "source": "s1", "score": 1.5, "title": "s1"}]
     assert embeddings.queries == ["hello"]
     call = client.search_calls[0]
     assert call["search_text"] == "hello" and call["top"] == 3
-    assert call["select"] == [ID_FIELD, CONTENT_FIELD, SOURCE_FIELD]
+    assert call["select"] == [ID_FIELD, CONTENT_FIELD, SOURCE_FIELD, TITLE_FIELD]
     vq = call["vector_queries"][0]
     assert (
         vq.fields == VECTOR_FIELD and vq.k_nearest_neighbors == 3 and vq.vector == [5.0, 0.0, 0.0]
@@ -182,6 +185,7 @@ def test_ingest_documents_embeds_and_uploads_in_batches() -> None:
         ID_FIELD,
         CONTENT_FIELD,
         SOURCE_FIELD,
+        TITLE_FIELD,
         ingest.CHUNK_INDEX_FIELD,
         VECTOR_FIELD,
     }
@@ -195,4 +199,172 @@ def test_load_path_reads_text_files_only(tmp_path: Path) -> None:
     (tmp_path / "c.bin").write_bytes(b"\x00")
     docs = ingest.load_path(tmp_path)
     assert [d.text for d in docs] == ["alpha", "beta"]
-    assert ingest.load_path(tmp_path / "a.md")[0].source.endswith("a.md")
+    assert ingest.load_path(tmp_path / "a.md")[0].source == "a.md"
+
+
+# ── titles + citation paths (roadmap api 3.1) ────────────────────────────────
+
+
+def test_azure_search_retriever_returns_the_stored_title() -> None:
+    client = FakeSearchClient(
+        rows=[
+            {
+                ID_FIELD: "a",
+                CONTENT_FIELD: "text a",
+                SOURCE_FIELD: "docs/a.md",
+                TITLE_FIELD: "Alpha guide",
+                "@search.score": 1.0,
+            }
+        ]
+    )
+    retriever = AzureSearchRetriever(client, FakeEmbeddings(dimensions=3))
+    [chunk] = asyncio.run(retriever.retrieve("hello"))
+    assert chunk["title"] == "Alpha guide"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("# Team Assistant\n\nbody", "Team Assistant"),
+        ("intro line\n\n#   Spaced title  \n", "Spaced title"),
+        ("## Only a level-2 heading\ntext", "notes.md"),
+        ("#hashtag is not a heading", "notes.md"),
+        ("", "notes.md"),
+    ],
+)
+def test_extract_title_uses_the_first_level_1_heading_else_the_file_name(
+    text: str, expected: str
+) -> None:
+    assert ingest.extract_title(text, "docs/notes.md") == expected
+
+
+def test_extract_title_is_capped() -> None:
+    assert len(ingest.extract_title("# " + "x" * 500, "a.md")) == ingest.TITLE_MAX_LENGTH
+
+
+def test_load_path_stores_paths_relative_to_the_folder_parent_and_titles(tmp_path: Path) -> None:
+    docs_dir = tmp_path / "docs"
+    (docs_dir / "architecture").mkdir(parents=True)
+    (docs_dir / "README.md").write_text("# Docs hub\n", encoding="utf-8")
+    (docs_dir / "architecture" / "ai.md").write_text("no heading", encoding="utf-8")
+
+    docs = ingest.load_path(docs_dir)
+
+    # file order follows the filesystem sort (case-insensitive on Windows) — compare as a set
+    assert {(d.source, d.title) for d in docs} == {
+        ("docs/README.md", "Docs hub"),
+        ("docs/architecture/ai.md", "ai.md"),
+    }
+
+
+def test_load_path_of_a_single_file_stores_its_name(tmp_path: Path) -> None:
+    (tmp_path / "notes.md").write_text("# Notes", encoding="utf-8")
+    [doc] = ingest.load_path(tmp_path / "notes.md")
+    assert (doc.source, doc.title) == ("notes.md", "Notes")
+
+
+def test_build_index_has_a_searchable_title() -> None:
+    names = {f.name: f for f in ingest.build_index("docs", dimensions=8).fields}
+    assert names[TITLE_FIELD].searchable is True
+
+
+def test_ingest_uploads_the_title_with_every_chunk() -> None:
+    client = FakeSearchClient()
+    docs = [ingest.IngestDocument(source="a.md", text="# Alpha\n" + "word " * 50, title="Alpha")]
+    asyncio.run(
+        ingest.ingest_documents(
+            docs,
+            embeddings=FakeEmbeddings(dimensions=2),
+            search_client=client,
+            chunk_size=40,
+            overlap=5,
+        )
+    )
+    uploaded = [record for batch in client.uploaded for record in batch]
+    assert len(uploaded) > 1 and {r[TITLE_FIELD] for r in uploaded} == {"Alpha"}
+
+
+class _OldIndexSearchClient(FakeSearchClient):
+    """Rejects `select=title` the way an index built before the title field does."""
+
+    def __init__(self, rows: list[dict[str, Any]], status: int = 400) -> None:
+        super().__init__(rows=rows)
+        self.status = status
+
+    def search(self, **kwargs: Any) -> list[dict[str, Any]]:
+        from azure.core.exceptions import HttpResponseError
+
+        self.search_calls.append(kwargs)
+        if TITLE_FIELD in kwargs["select"]:
+            error = HttpResponseError(message="Could not find a property named 'title'")
+            error.status_code = self.status
+            raise error
+        return list(self.rows)
+
+
+def test_retrieval_keeps_working_against_an_index_without_the_title_field() -> None:
+    client = _OldIndexSearchClient(
+        rows=[{ID_FIELD: "a", CONTENT_FIELD: "t", SOURCE_FIELD: "docs/a.md", "@search.score": 1.0}]
+    )
+    retriever = AzureSearchRetriever(client, FakeEmbeddings(dimensions=3))
+
+    [first] = asyncio.run(retriever.retrieve("q"))
+    asyncio.run(retriever.retrieve("q again"))
+
+    assert first["title"] == "a.md"  # falls back to the file name
+    selects = [call["select"] for call in client.search_calls]
+    assert TITLE_FIELD in selects[0]  # tried once with the title
+    assert all(TITLE_FIELD not in s for s in selects[1:])  # then remembered: no title
+    assert len(selects) == 3  # first try, its retry, the second question
+
+
+def test_retrieval_does_not_swallow_other_search_errors() -> None:
+    from azure.core.exceptions import HttpResponseError
+
+    client = _OldIndexSearchClient(rows=[], status=503)
+    retriever = AzureSearchRetriever(client, FakeEmbeddings(dimensions=3))
+
+    with pytest.raises(HttpResponseError):
+        asyncio.run(retriever.retrieve("q"))
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("```bash\n# install deps\n```\n# Real title", "Real title"),
+        ("~~~\n# not this\n~~~\nno heading", "notes.md"),
+        ("---\ntitle: x\n# yaml comment\n---\n# After front matter", "After front matter"),
+    ],
+)
+def test_extract_title_skips_code_blocks_and_front_matter(text: str, expected: str) -> None:
+    assert ingest.extract_title(text, "docs/notes.md") == expected
+
+
+def test_files_outside_the_ingested_folder_are_not_ingested(tmp_path: Path) -> None:
+    root = tmp_path / "docs"
+    root.mkdir()
+    outside = tmp_path / "secret.md"
+    outside.write_text("do not index", encoding="utf-8")
+
+    # what a symlink inside docs/ pointing at ../secret.md resolves to
+    assert ingest.display_path(outside, root) is None
+    assert ingest.display_path(root / "a.md", root) == "docs/a.md"
+
+
+def test_the_ingest_cli_loads_the_local_env_before_reading_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    order: list[str] = []
+    monkeypatch.setattr(ingest, "load_local_env", lambda: order.append("env"))
+    monkeypatch.setattr(ingest, "configure_logging", lambda: order.append("logging"))
+
+    async def fake_run(argv: Any) -> ingest.IngestReport:
+        order.append("run")
+        return ingest.IngestReport(documents=1, chunks=2, uploaded=2)
+
+    monkeypatch.setattr(ingest, "run", fake_run)
+    monkeypatch.setattr(ingest.sys, "argv", ["ingest", "docs"])
+
+    ingest.main()
+
+    assert order == ["env", "logging", "run"]

@@ -13,26 +13,84 @@ removed in [ADR-0003](../adr/0003-remove-nestjs-api-layer.md).
 
 ## Route map
 
-| Method | Path                | Service          | Purpose                                                         | Versioned?       |
-| ------ | ------------------- | ---------------- | --------------------------------------------------------------- | ---------------- |
-| GET    | `/ping`             | `apps/api`       | Liveness greeting                                               | No (operational) |
-| GET    | `/info`             | `apps/api`       | Status/version/runtime report                                   | No (operational) |
-| GET    | `/health`           | `apps/api`       | Health + observability state                                    | No (operational) |
-| GET    | `/v1/*`             | `apps/api`       | Mandatory business router — **empty**, no routes registered yet | Yes (`/v1`)      |
-| GET    | `/api/ping-backend` | `apps/web` (BFF) | Proxies `apps/api` `/ping`                                      | No (demo route)  |
-| GET    | `/api/info-backend` | `apps/web` (BFF) | Proxies `apps/api` `/info`                                      | No (demo route)  |
-| GET    | `/health`           | `apps/web` (BFF) | Own health + observability state (no upstream call)             | No (operational) |
+| Method | Path                                      | Service          | Purpose                                              | Versioned?       |
+| ------ | ----------------------------------------- | ---------------- | ---------------------------------------------------- | ---------------- |
+| GET    | `/ping`                                   | `apps/api`       | Liveness greeting                                    | No (operational) |
+| GET    | `/info`                                   | `apps/api`       | Status/version/runtime report                        | No (operational) |
+| GET    | `/health`                                 | `apps/api`       | Health + observability state                         | No (operational) |
+| POST   | `/v1/conversations`                       | `apps/api`       | Start a conversation (F2)                            | Yes (`/v1`)      |
+| GET    | `/v1/conversations`                       | `apps/api`       | List conversations, most recently updated first (F2) | Yes (`/v1`)      |
+| GET    | `/v1/conversations/{conversation_id}`     | `apps/api`       | One conversation with its messages (F2)              | Yes (`/v1`)      |
+| POST   | `/v1/conversations/{conversation_id}/ask` | `apps/api`       | Ask a question; grounded answer with citations (F1)  | Yes (`/v1`)      |
+| GET    | `/api/ping-backend`                       | `apps/web` (BFF) | Proxies `apps/api` `/ping`                           | No (demo route)  |
+| GET    | `/api/info-backend`                       | `apps/web` (BFF) | Proxies `apps/api` `/info`                           | No (demo route)  |
+| GET    | `/health`                                 | `apps/web` (BFF) | Own health + observability state (no upstream call)  | No (operational) |
 
-Business endpoints, when they arrive, are `/v1/<feature>` on the api (routers attached to
-`v1_router`) and `/api/v1/<feature>` on web (folder-enforced). See [Versioning](#versioning).
+Business endpoints are `/v1/<feature>` on the api (routers attached to `v1_router`) and
+`/api/v1/<feature>` on web (folder-enforced). See [Versioning](#versioning). The full planned
+surface is in [`TAChatbot/architecture.md` → B4a](../architecture/TAChatbot/architecture.md).
 
 ---
 
 ## `apps/api` — FastAPI (port 8000, origin `0c70`)
 
-Source: `apps/api/app/routes.py` (operational router, mounted at root by `app/main.py`).
-`app/routers/v1.py` defines `v1_router` (`prefix="/v1"`) but **no feature router is attached
-yet** — `/v1/*` currently 404s.
+Source: `apps/api/app/routes.py` (operational router, mounted at root by `app/main.py`) and
+`app/routers/v1.py` (`v1_router`, `prefix="/v1"`) with `app/routers/conversations.py` attached.
+The machine-readable contract is [`openapi.json`](openapi.json) (`just openapi`).
+
+### `POST /v1/conversations`
+
+Starts a conversation. Body optional: `{ "title"?: string }` — trimmed, at most 200 UTF-16 units
+(an emoji counts 2, so it always fits the column), no control characters; a missing or blank
+title becomes `"New conversation"`.
+
+- `201` → `{ "id": uuid, "title": string, "created_at": datetime, "updated_at": datetime }`
+  (UTC, ISO 8601 with `Z`)
+- `422 validation_error` → title too long, not a string or with control characters; body not an
+  object
+
+### `GET /v1/conversations?limit=50`
+
+Conversations, most recently updated first (ties broken by id). `limit` 1–100, default 50.
+
+- `200` → `{ "items": [{ "id", "title", "updated_at" }], "count": <items in this response> }`
+- `422 validation_error` → `limit` outside 1–100 or not an integer
+
+### `GET /v1/conversations/{conversation_id}`
+
+One conversation with its messages, oldest first.
+
+- `200` → the conversation fields above plus
+  `"messages": [{ "id", "role": "user" | "assistant", "content", "citations", "created_at" }]`;
+  `citations` is `[{ "title", "path" }]` on assistant answers, `null` on user messages (and on a
+  stored value that is not that shape — logged as a kind, never the text)
+- `404 not_found` → no conversation with that id
+- `422 validation_error` → the id is not a UUID
+
+### `POST /v1/conversations/{conversation_id}/ask`
+
+Asks a question in the conversation. Body: `{ "question": string }` — trimmed, 1–4,000
+characters. The question is stored and committed first; the last 10 messages go to the model as
+history; retrieval (AI Search, top 5) runs before the model; the answer is stored with its
+citations. A conversation still titled `"New conversation"` takes the question as its title.
+
+- `200` → `{ "message_id": uuid, "answer": string, "citations": [{ "title", "path" }] }`
+  (`citations` may be empty)
+- `404 not_found` → no conversation with that id
+- `422 validation_error` → the question is missing, empty, longer than 4,000 characters or not
+  a string
+- `503 ai_unavailable` → the model or search failed, timed out, returned an empty answer or is
+  not configured; the question is kept, no answer is stored (only a bounded `error_kind` and
+  class name are logged — never the question or answer). A retry is safe: the unanswered question
+  is not sent to the model as history.
+- `500 internal_error` → a bug (or storing the answer failed); the question is kept
+
+The whole ask is bounded by 2 × `AI_REQUEST_TIMEOUT_SECONDS` (120 s by default) — a BFF calling
+this route needs a hop timeout above that, far longer than `fetchUpstream`'s 10 s default
+(rule 30). Two asks sent at once on the same conversation are not serialised: the UI should
+disable input while one is pending.
+
+Conversations are shared — no owner until auth lands (ADR-0014).
 
 ### `GET /ping`
 
@@ -233,6 +291,6 @@ disabled/degraded state never crashes the service — see `.claude/rules/60-obse
   [`../../.claude/rules/05-api-versioning.md`](../../.claude/rules/05-api-versioning.md).
 - **The only exemption**: the operational endpoints `/ping`, `/info`, `/health` (both services)
   stay unversioned — container/Azure health probes target fixed paths.
-- **This reference documents the foundation surface only** — there are no business endpoints
-  yet. `apps/api`'s `v1_router` is mounted but empty; `apps/web` has no `src/app/api/v1/`
-  folder yet — the first business BFF route creates it.
+- Business endpoints so far: `apps/api` `/v1/conversations` (create, list). `apps/web` still
+  carries the template's `/api/v1/assistant/ask` (+ `/stream`) BFF routes, which the web roadmap
+  replaces with the conversation routes (B8 #10).

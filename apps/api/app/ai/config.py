@@ -12,12 +12,14 @@ cache it at import (tests monkeypatch the environment).
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 AUTH_MODES = ("managed_identity", "api_key")
 DEFAULT_API_VERSION = "2024-10-21"
 DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_MAX_RETRIES = 2
+# Cap on each answer's length (and cost) — ~700–800 English words. 0 = no cap.
+DEFAULT_MAX_OUTPUT_TOKENS = 1024
 # text-embedding-3-small / ada-002 produce 1536-dimensional vectors; large = 3072.
 DEFAULT_EMBEDDING_DIMENSIONS = 1536
 
@@ -60,13 +62,16 @@ class AISettings:
     embedding_dimensions: int
     api_version: str
     auth_mode: str
-    api_key: str | None
+    # Secrets never appear in repr() — a logged or printed settings object shows no key.
+    api_key: str | None = field(repr=False)
     search_endpoint: str | None
     search_index: str | None
-    search_api_key: str | None
+    search_api_key: str | None = field(repr=False)
     request_timeout_seconds: float
     max_retries: int
     allow_text_to_sql: bool
+    # Output-token cap per model call (AI_MAX_OUTPUT_TOKENS); None = no cap.
+    max_output_tokens: int | None = DEFAULT_MAX_OUTPUT_TOKENS
 
     @property
     def has_model(self) -> bool:
@@ -115,6 +120,13 @@ def get_ai_settings() -> AISettings:
         max_retries = int(max_retries_raw) if max_retries_raw else DEFAULT_MAX_RETRIES
     except ValueError:
         max_retries = DEFAULT_MAX_RETRIES
+    max_output_raw = _env("AI_MAX_OUTPUT_TOKENS")
+    try:
+        max_output = int(max_output_raw) if max_output_raw else DEFAULT_MAX_OUTPUT_TOKENS
+    except ValueError:
+        max_output = DEFAULT_MAX_OUTPUT_TOKENS
+    if max_output < 0:
+        max_output = DEFAULT_MAX_OUTPUT_TOKENS
     dims_raw = _env("AZURE_AI_EMBEDDING_DIMENSIONS")
     try:
         dims = int(dims_raw) if dims_raw else DEFAULT_EMBEDDING_DIMENSIONS
@@ -134,4 +146,5 @@ def get_ai_settings() -> AISettings:
         request_timeout_seconds=_float_env("AI_REQUEST_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS),
         max_retries=max(0, max_retries),
         allow_text_to_sql=_bool_env("AI_ALLOW_TEXT_TO_SQL"),
+        max_output_tokens=max_output or None,
     )

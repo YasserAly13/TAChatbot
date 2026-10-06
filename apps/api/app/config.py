@@ -10,7 +10,7 @@ Shared monorepo contract:
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -88,13 +88,14 @@ class Settings:
     app_env: str
     otel_service_name: str
     port: int
-    applicationinsights_connection_string: str
+    # Secrets never appear in repr() — a logged or printed Settings shows no credential.
+    applicationinsights_connection_string: str = field(repr=False)
     # SQLAlchemy async URL (mssql+aioodbc://…). Read lazily by app.db.engine;
     # never logged (carries credentials).
-    database_url: str
+    database_url: str = field(repr=False)
     # Optional READ-ONLY external database (mssql+aioodbc://…), read lazily by
     # app.db.external. None = not configured (the external engine refuses to build).
-    external_database_url: str | None
+    external_database_url: str | None = field(repr=False)
 
     @property
     def has_connection_string(self) -> bool:

@@ -7,6 +7,10 @@ export default defineConfig({
     // with `// @vitest-environment jsdom` at the top (ADR-0011).
     environment: 'node',
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    // jsdom + user-event typing is slow per keystroke: MessageInput.test.tsx passed in ~2 s alone
+    // but crossed the 5 s default on a busy machine (e.g. right after `just fmt` and the api
+    // suite). 15 s keeps a real hang failing while ending the false timeouts.
+    testTimeout: 15_000,
     setupFiles: ['./vitest.setup.ts'],
     coverage: {
       provider: 'v8',

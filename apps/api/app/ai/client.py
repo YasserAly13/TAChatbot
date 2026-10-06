@@ -73,6 +73,9 @@ def build_chat_model(
         # Ask Azure OpenAI to report token usage on the final streamed chunk too, so
         # telemetry sees input/output tokens for streamed answers (field verified in 1.6.6).
         "stream_usage": True,
+        # Caps each answer's length and cost; sent as max_completion_tokens (verified in
+        # langchain-openai 1.6.6). AI_MAX_OUTPUT_TOKENS=0 removes the cap.
+        **({"max_tokens": s.max_output_tokens} if s.max_output_tokens else {}),
         **_auth_kwargs(s),
         **overrides,
     }

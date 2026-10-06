@@ -7,6 +7,135 @@ The two services version independently.
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-10-06
+
+### Security
+
+- The local dev server binds to **`127.0.0.1`**, not `0.0.0.0` (`package.json` `dev`, the api
+  `README.md`/`CLAUDE.md`, the `main.py` docstring, `docs/reference/commands.md`) — the api was
+  reachable from the local network although ADR-0013 says local-only (threat model
+  `conversations-and-ingest`, must-fix #1). The container image still binds `0.0.0.0`, as Docker
+  port mapping requires.
+- Secrets never appear in `repr()`: `AISettings.api_key` / `search_api_key` and
+  `Settings.database_url` / `external_database_url` / `applicationinsights_connection_string`
+  are `field(repr=False)`, so a printed or logged settings object shows no credential.
+
+## [0.9.0] — 2026-10-06
+
+### Added
+
+- **`AI_MAX_OUTPUT_TOKENS`** (default `1024`, `0` = no cap) — caps each answer's length and
+  cost; the chat client sends it as `max_completion_tokens` (verified against
+  `langchain-openai` 1.6.6). Closes the "no output cap" cost finding from the 4.1 security
+  review; rate limiting stays with the 1.2 threat model. Documented in both `.env.example`s,
+  `docker-compose.yml` and `docs/reference/environment-variables.md`.
+
+## [0.8.0] — 2026-10-06
+
+### Added
+
+- **`POST /v1/conversations/{conversation_id}/ask`** (roadmap api 4.1, F1) — `{ "question" }`
+  (trimmed, 1–4,000 characters) → `200 { message_id, answer, citations: [{ title, path }] }`.
+  The question is stored and committed before the model runs; the last 10 messages are the
+  history; the answer is stored with its citations and output token count; the first question
+  renames a "New conversation". `404 not_found`, `422 validation_error`, `503 ai_unavailable`
+  (question kept, only a bounded `error_kind` logged).
+- `get_answer_graph` dependency — the `retrieve → answer` graph built once, overridable in
+  tests; repository `title_from_question`.
+- One deadline for the whole ask (2 × `AI_REQUEST_TIMEOUT_SECONDS`) — the AI Search SDK call has
+  no timeout of its own. Only upstream failures (OpenAI/httpx, Azure SDK, timeout) and an empty
+  answer become `503 ai_unavailable`; a missing AI configuration keeps its own 503 handler, and
+  a bug is a `500 internal_error` with its location logged. History holds answered turns only,
+  so a retried question is not sent twice.
+
+### Fixed
+
+- `touch` never moves `updated_at` backwards, so renaming right after a message cannot make the
+  next message's timestamp tie with it.
+
+## [0.7.0] — 2026-10-06
+
+### Changed
+
+- **Sources are `[{title, path}]`** (roadmap api 3.1, B8 #7): `Answer.sources` and the SSE
+  `sources` / `done` frames carry one `{title, path}` per cited document instead of a list of
+  paths. No `/v1` route streams yet, so no consumer breaks; the web chat components still
+  expect strings and change with the web roadmap.
+- **Ingestion** stores a searchable `title` per chunk (the first `# ` heading, else the file
+  name) and stores `source` relative to the ingested folder's parent — `ingest ../../docs`
+  stores `docs/README.md`, not `../../docs/README.md`.
+
+### Added
+
+- Index field `title` (`build_index`); `ensure_index` adds it to an existing index in place.
+  Retrieval selects it and falls back to the source's file name for chunks indexed before it
+  existed; against an index that does not have the field yet, the first `select=title` 400 is
+  caught once and retrieval continues without it (no outage before the re-index).
+- Fixed: `python -m app.ai.ingest` now loads `apps/api/.env` like `app.main` (it failed with
+  `AINotConfigured` on a developer machine even when `.env` had the search settings).
+- Hardening: titles ignore `# ` lines in fenced code and YAML front matter; files that resolve
+  outside the ingested folder (symlinks) are skipped; a stored source that could expose a
+  machine path (absolute, drive letter, `..`, backslashes) reaches clients as its file name.
+
+## [0.6.0] — 2026-10-06
+
+### Added
+
+- **`GET /v1/conversations/{conversation_id}`** — one conversation with its messages, oldest
+  first: `{ id, title, created_at, updated_at, messages: [{ id, role, content, citations,
+  created_at }] }`; `citations` parsed to `[{ title, path }]` (or `null`); `404 not_found` for an
+  unknown id, `422 validation_error` for a non-UUID (roadmap api 2.2).
+- Repository `get_conversation_with_messages` — loads messages explicitly (`selectinload`; the
+  relationship is `lazy="raise"`).
+
+### Changed
+
+- Messages read oldest first by `(created_at, id)`, and `add_message` makes each new message's
+  `created_at` strictly later than the conversation's last update — a question and its answer
+  stored in the same millisecond can no longer read out of order.
+- A stored `citations` value that is valid JSON but not `[{title, path}]` reads as `null` and
+  logs only the failure kind, never the stored text. `openapi.json` and web `api-types.ts`
+  regenerated.
+
+## [0.5.0] — 2026-10-06
+
+### Added
+
+- **`POST /v1/conversations`** — start a conversation; optional `{ "title" }` (trimmed; at most
+  200 UTF-16 units — an emoji counts 2 — so it always fits `NVARCHAR(200)`; no control
+  characters; blank → "New conversation"); `201 { id, title, created_at, updated_at }`
+  (roadmap api 2.1).
+- **`GET /v1/conversations?limit=50`** (1–100) — `{ items: [{ id, title, updated_at }], count }`,
+  most recently updated first.
+- **Conversation repository** (`app/repositories/conversations.py`): create, list, get, add
+  message (bumps `updated_at`), rename, touch — used through `Depends(get_session)`.
+- Timestamps in responses are UTC with an explicit `Z`. `docs/reference/openapi.json` and the
+  web's generated `api-types.ts` regenerated.
+
+## [0.4.0] — 2026-10-06
+
+### Added
+
+- **Conversation and message models** (`app/models/conversation.py`, roadmap api 1.1):
+  `conversations` (`id`, `title nvarchar(200)` default "New conversation", `created_at`,
+  `updated_at`) and `messages` (`conversation_id` FK, `role` check `user|assistant`,
+  `content`/`citations` `nvarchar(max)` with an `ISJSON` check on `citations`, `token_count`,
+  `created_at`); `datetime2(3)` timestamps defaulting to `SYSUTCDATETIME()`; indexes for the
+  newest-first list and the oldest-first thread (`docs/design/db-design.md`).
+- **First Alembic revision** `7c1d4e2a9b30` creating both tables, with a full `downgrade()`.
+  Not applied by the project — a named human applies it to dev (ADR-0013).
+- `tests/test_models.py` compiles the models for SQL Server and fails if the migration's
+  `CREATE TABLE` drifts from the model; `tests/test_alembic.py` now covers offline upgrade and
+  downgrade of the real revision.
+
+### Fixed
+
+- `alembic/env.py` now loads `apps/api/.env` (like `app.main`, ambient env wins), so
+  `alembic upgrade`/`current` on a developer machine reach the database in `.env` instead of the
+  placeholder URL.
+
+No HTTP API change.
+
 ## [0.3.0] — 2026-10-04
 
 ### Added

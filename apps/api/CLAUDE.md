@@ -62,10 +62,16 @@ this as a starting map; read the actual files when you need detail.
   singleton**, `dispose_engine()`), `session.py` (`get_session()` FastAPI dependency — the ONLY
   way routes get a handle on the project DB), `external.py` (second lazy **read-only** engine
   for `EXTERNAL_DATABASE_URL`: `get_external_session()`, non-SELECT statements refused).
-- `models/` — 2.0-style `Mapped[]` models subclassing `app.db.Base`; **empty placeholder** today
-  (one commented example). Import new model modules in `models/__init__.py` so Alembic sees them.
+- `routers/conversations.py` — `/v1/conversations` (POST create, GET list — api 2.1; GET `/{conversation_id}` with messages — api 2.2; POST `/{conversation_id}/ask` — api 4.1, graph via the `get_answer_graph` dependency).
+  Pydantic request/response models live beside the routes; responses attach UTC to timestamps.
+- `repositories/` — query functions taking an `AsyncSession` (`conversations.py`: create, list,
+  get, add message, rename, touch). They add + flush; the route commits (one request = one
+  transaction). They set ids and millisecond UTC timestamps themselves, so no refresh is needed.
+- `models/` — 2.0-style `Mapped[]` models subclassing `app.db.Base` (`conversation.py`). Import
+  new model modules in `models/__init__.py` so Alembic sees them.
 - `../alembic/` + `../alembic.ini` — Alembic (async `env.py`, URL from `DATABASE_URL` via
-  `app.config`, never from the ini); `versions/` is **empty** — migrations are not run.
+  `app.config` — `.env` loaded like `app.main` — never from the ini); revision `7c1d4e2a9b30`,
+  applied by a named human only (ADR-0013).
 - `ai/` — the AI runtime (ADR-0009, rule 70): `config.py` (`AZURE_AI_*`/`AZURE_SEARCH_*`/`AI_*`),
   `client.py` (**the mock seam** — `get_chat_model()`/`get_embeddings()`, managed identity when
   deployed), `graph.py` (`build_graph()` → `retrieve → answer` LangGraph, `ask()`),
@@ -99,10 +105,19 @@ this as a starting map; read the actual files when you need detail.
 - **Session per request** via `Depends(get_session)`; tests override it with
   `app.dependency_overrides[get_session]` and never need a database. External read-only data:
   `Depends(get_external_session)` (`EXTERNAL_DATABASE_URL`; unset ⇒ `ExternalDatabaseNotConfigured`).
-- **Alembic is wired, idle.** `alembic/versions/` is empty; the URL comes from `DATABASE_URL`
-  through `app.config` (never `alembic.ini`). Autogenerate/`check` target the **dev** database;
-  **applying is `.github/workflows/migrate.yml` (Environment-gated) or a named human** — agents
-  only use offline/`heads`/`check` modes (root `CLAUDE.md` → _What you cannot do_).
+- **Models:** `app/models/conversation.py` — `Conversation` + `Message` (`conversations`,
+  `messages`; `docs/design/db-design.md`). Text columns that need `NVARCHAR(max)` use
+  `Unicode()` without a length — `UnicodeText` renders `NTEXT` offline, which `ISJSON()` rejects.
+  **Deviation from rule 25:** timestamps are `DATETIME2(3)` + `SYSUTCDATETIME()` (the design's
+  `datetime2(3)`), not `DateTime(timezone=True)` + `func.now()` — values are UTC but come back
+  naive, so responses attach UTC. Relationships are `lazy="raise"`: load messages with
+  `selectinload`, never implicitly on an `AsyncSession`.
+- **Alembic:** one revision, `7c1d4e2a9b30` (create conversations and messages); the URL comes
+  from `DATABASE_URL` through `app.config` (never `alembic.ini`). Autogenerate/`check` target the
+  **dev** database; **applying is a named human from a developer machine (ADR-0013 — no
+  `migrate.yml` in this project)** — agents only use offline/`heads`/`check` modes (root
+  `CLAUDE.md` → _What you cannot do_). `tests/test_models.py` fails if a model and the migration
+  disagree.
 - **DB spans** = `opentelemetry-instrumentation-sqlalchemy` (0.61b0, distro line) registered in
   `init_observability` **without an engine**, so it wraps `create_async_engine` for both lazy
   engines — which is why `engine.py`/`external.py` resolve it via `sa_asyncio.create_async_engine`
@@ -112,7 +127,7 @@ this as a starting map; read the actual files when you need detail.
 
 ```bash
 uv sync
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 uv run ruff format app alembic tests && uv run ruff check app alembic tests
 uv run pytest                  # pytest + Starlette TestClient (--cov=app --cov-report=xml for coverage)
 uv run alembic heads                              # head revisions (none today)
