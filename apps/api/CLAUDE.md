@@ -127,7 +127,7 @@ this as a starting map; read the actual files when you need detail.
 
 ```bash
 uv sync
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 uv run ruff format app alembic tests && uv run ruff check app alembic tests
 uv run pytest                  # pytest + Starlette TestClient (--cov=app --cov-report=xml for coverage)
 uv run alembic heads                              # head revisions (none today)

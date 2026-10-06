@@ -13,7 +13,7 @@ starter template built by [Orion Digital Solutions](https://www.orion360.com/) f
 
 ```bash
 uv sync
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 (`apps/api/.env` — a copy of `.env.example` — is **optional**: `app.main` loads it via

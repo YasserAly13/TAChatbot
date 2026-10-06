@@ -83,3 +83,17 @@ class TestLoadLocalEnv:
         assert config.LOCAL_ENV_FILE.name == ".env"
         assert config.LOCAL_ENV_FILE.parent.name == "api"
         assert (config.LOCAL_ENV_FILE.parent / ".env.example").is_file()
+
+
+def test_settings_repr_never_shows_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.config import get_settings
+
+    secret_url = "mssql+aioodbc://u:p4ss-must-not-show@db.invalid:1433/app?driver=x"
+    monkeypatch.setenv("DATABASE_URL", secret_url)
+    monkeypatch.setenv("EXTERNAL_DATABASE_URL", secret_url)
+    monkeypatch.setenv("APPLICATIONINSIGHTS_CONNECTION_STRING", "InstrumentationKey=must-not-show")
+
+    settings = get_settings()
+
+    assert "must-not-show" not in repr(settings)
+    assert settings.database_url == secret_url  # still readable in code

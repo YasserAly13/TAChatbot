@@ -13,7 +13,7 @@ Bootstrap order matters:
        are closed cleanly (ADR-0004).
 
 Run with working dir = apps/api:
-    uvicorn app.main:app --host 0.0.0.0 --port 8000
+    uvicorn app.main:app --host 127.0.0.1 --port 8000   # local dev; the container binds 0.0.0.0
 Local dev env: `apps/api/.env` (copy of `.env.example`) is loaded by
 ``load_local_env()`` below IF IT EXISTS — it is optional, and ambient/shell env
 always wins. Docker/Compose pass real env vars instead; no `--env-file` flag is

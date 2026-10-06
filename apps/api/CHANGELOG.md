@@ -7,6 +7,19 @@ The two services version independently.
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-10-06
+
+### Security
+
+- The local dev server binds to **`127.0.0.1`**, not `0.0.0.0` (`package.json` `dev`, the api
+  `README.md`/`CLAUDE.md`, the `main.py` docstring, `docs/reference/commands.md`) — the api was
+  reachable from the local network although ADR-0013 says local-only (threat model
+  `conversations-and-ingest`, must-fix #1). The container image still binds `0.0.0.0`, as Docker
+  port mapping requires.
+- Secrets never appear in `repr()`: `AISettings.api_key` / `search_api_key` and
+  `Settings.database_url` / `external_database_url` / `applicationinsights_connection_string`
+  are `field(repr=False)`, so a printed or logged settings object shows no credential.
+
 ## [0.9.0] — 2026-10-06
 
 ### Added
