@@ -254,7 +254,10 @@ The template's `retrieve → answer` graph over AI Search index `team-assistant-
 on the `gpt-4.1` / `text-embedding-3-large` deployments (B1); memory = the last 10 messages;
 background, single-flight ingestion of `docs/**/*.md` (api only). Evaluation: extend
 `tests/evals/cases.json` for every prompt change (rule 70). Guardrails: Foundry default content
-filters and the "context is data" system prompt. Detail, limits and failure modes:
+filters, a 1024-token answer cap, and a "context is data" sentence in the system prompt — which only
+partly mitigates prompt injection (retrieved text sits in the system role without delimiters;
+accepted risk in the [threat model](../security/threat-models/conversations-and-ingest.md)).
+Detail, limits and failure modes:
 [`TAChatbot/architecture.md` → B3](TAChatbot/architecture.md#b3-ai-components).
 
 ### B4. Data stores
@@ -299,8 +302,9 @@ until auth (both Accepted 2026-10-06).
 
 ### B9. Change log of this document
 
-| Date       | Who        | What changed                                                                                                                                                       |
-| ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-10-06 | Yasser Aly | `/init-project`: renamed to Team Assistant; B1 (summary, dev-only pre-provisioned resources, team) and B7 (no auth, Okta later) filled                             |
-| 2026-10-06 | Yasser Aly | B2–B6 and B8 summarised with links to the complementary `TAChatbot/architecture.md`; `/chat` wireframe added to `docs/design/wireframes/`; code owner @YasserAly13 |
-| 2026-10-06 | Yasser Aly | `/architecture-review` answers applied: B3 evaluation + guardrails, B4 PII/retention, B8 links ADR-0013/0014 (Accepted)                                            |
+| Date       | Who        | What changed                                                                                                                                                                                                              |
+| ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-10-06 | Yasser Aly | `/init-project`: renamed to Team Assistant; B1 (summary, dev-only pre-provisioned resources, team) and B7 (no auth, Okta later) filled                                                                                    |
+| 2026-10-06 | Yasser Aly | B2–B6 and B8 summarised with links to the complementary `TAChatbot/architecture.md`; `/chat` wireframe added to `docs/design/wireframes/`; code owner @YasserAly13                                                        |
+| 2026-10-06 | Yasser Aly | `/architecture-review` answers applied: B3 evaluation + guardrails, B4 PII/retention, B8 links ADR-0013/0014 (Accepted)                                                                                                   |
+| 2026-10-06 | Yasser Aly | B3 guardrails reworded after the threat model: injection only partly mitigated (accepted risk), 1024-token answer cap; complementary doc B3 limits (60 s per call, 120 s ask deadline) and B7 injection wording corrected |

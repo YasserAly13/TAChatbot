@@ -88,7 +88,7 @@ openapi`). Example: `/api/v1/assistant/ask[/stream]` + the `/chat` page.
 
 ```bash
 pnpm -C apps/web install
-pnpm -C apps/web dev            # next dev :3000  (MOCK_UPSTREAM=true in .env.local to use the /chat page without the api)
+pnpm -C apps/web dev            # next dev :3000 on 127.0.0.1 only  (MOCK_UPSTREAM=true in .env.local to use the /chat page without the api)
 pnpm -C apps/web build          # next build (standalone output)
 pnpm -C apps/web test           # Vitest (lib + BFF routes in node; components in jsdom); test:cov for coverage
 pnpm -C apps/web typecheck      # tsc --noEmit

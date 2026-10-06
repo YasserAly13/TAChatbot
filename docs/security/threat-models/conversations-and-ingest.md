@@ -197,9 +197,9 @@ Concrete controls the endpoint must have (items marked **(owner decision)** go b
 acceptance and need a yes, because they add an env setting):
 
 1. **No input at all.** No body, query or path parameters are read; a non-empty body is ignored and never parsed. The corpus path comes only from `INGEST_CORPUS_PATH`, validated at startup or first use, never logged (machine path).
-2. **Off by default (owner decision).** A setting such as `ADMIN_INGEST_ENABLED=false` makes the route answer `404`; the developer turns it on locally. Add to `.env.example` and `docs/reference/environment-variables.md`.
+2. **Off by default (decided yes by the owner 2026-10-06: `ADMIN_INGEST_ENABLED`, default `false`).** A setting such as `ADMIN_INGEST_ENABLED=false` makes the route answer `404`; the developer turns it on locally. Add to `.env.example` and `docs/reference/environment-variables.md`.
 3. **Single-flight that cannot stick.** Acquire an in-process lock/flag before returning `202`; release in `finally` (success, failure, cancellation); second call -> `409 ingest_running` via the error contract (`Conflict("ingest_running")`). Document that it is valid for one process only (no `--workers`, no replicas); more would need a database/index-side lock.
-4. **Cooldown (owner decision).** A minimum interval between runs (for example 5 minutes, a setting); a call inside it -> `429 rate_limited`. Single-flight alone does not stop a loop of triggers.
+4. **Cooldown (decided yes by the owner 2026-10-06: `INGEST_COOLDOWN_SECONDS`, default `300`).** A minimum interval between runs (for example 5 minutes, a setting); a call inside it -> `429 rate_limited`. Single-flight alone does not stop a loop of triggers.
 5. **Corpus caps.** Maximum files, total bytes and chunks per run; refuse and log counts when exceeded. Keep `TEXT_SUFFIXES` (`.md`, `.txt`) and the symlink/outside-root skip (`ingest.display_path`).
 6. **Never block the event loop.** Run `load_path`, `chunk_text` and file reads via `asyncio.to_thread`; wrap the whole run in an `asyncio.timeout`; keep the embedding client's timeouts.
 7. **Failures are visible and bounded.** Catch everything in the background task; log `error_kind` and class only (never the message, which can echo content); a failed run releases the lock and is reported in the log with counts.
@@ -211,6 +211,8 @@ acceptance and need a yes, because they add an env setting):
 13. **Stop condition.** If the api is ever reachable beyond localhost, this route does not ship without authentication.
 
 ## 10. Where the code disagrees with the docs
+
+**Resolved 2026-10-06:** the dev commands now bind `127.0.0.1` (api 0.9.1, web `-H 127.0.0.1`); B3/B7 now state that injection is only partly mitigated; `architecture.md` B3 states the 120 s ask deadline; rule 70 lists `AI_MAX_OUTPUT_TOKENS`. The list below is kept as the record of what was found.
 
 - "Local-only" (ADR-0013, B6) versus `--host 0.0.0.0` in `package.json:21`, `apps/api/CLAUDE.md:130`, `apps/api/README.md:16` (S2).
 - `ARCHITECTURE.md` B7 / `architecture.md` B7 say injection is "mitigated by the template's context-is-data prompt rule": in code it is one prompt sentence, the context is in the system role, and the eval only checks the phrase exists.
