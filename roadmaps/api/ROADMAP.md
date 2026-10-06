@@ -35,18 +35,23 @@ migrations are applied by Yasser Aly from a developer machine.
 
 ### 1.2 — Threat model: conversation store and ingest endpoint
 
-- **status:** todo
+- **status:** done
 - **depends_on:** []
 - **layers:** [docs]
 - **acceptance:**
   - `docs/security/threat-models/conversations-and-ingest.md` (STRIDE) covers: every user reads every conversation (ADR-0014); unauthenticated `POST /v1/admin/ingest` (cost / denial of service, single-flight); prompt injection through the corpus; the public repository naming the resources while the dev SQL firewall is open to every IP (ADR-0013)
   - each threat has a mitigation already in the design or an explicit accepted risk
 - **how_to_test:**
+  - open `docs/security/threat-models/conversations-and-ingest.md`: sections 3–4 rate 33 threats (STRIDE + AI) against the current code; section 7 lists 12 accepted risks, section 8 the 12 must-fix items before any shared use, section 9 the 13 controls for 3.2, section 10 where code and docs disagree
+  - `docs/security/threat-models/README.md` lists it as "Draft — awaiting acceptance"
 - **needs_human:**
-  - read and accept the accepted-risk list
+  - read and accept the accepted-risk list (section 7), or name the risks to fix instead
+  - decide the two 3.2 controls marked "owner decision" in section 9: an off-by-default switch for the ingest route, and a cooldown between runs
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`; required before 3.2 (an unauthenticated trigger)
   - 2026-10-06 — from the 2.1 security review, also cover: unauthenticated `POST /v1/conversations` with no rate limit or row cap, and no request-body size cap (memory/CPU before a 422) — accepted while local-only (ADR-0013), HIGH if ever exposed
+  - 2026-10-06 — started by Claude; written by the threat-modeler agent: `docs/security/threat-models/conversations-and-ingest.md` + README row. Verified in code: `just dev` binds the api to `0.0.0.0` (package.json `dev`; also `apps/api/CLAUDE.md`, `README.md`, `main.py` docstring) although ADR-0013 says local-only; `AISettings` repr would print both API keys. Awaiting test by Yasser Aly
+  - 2026-10-06 — confirmed by Yasser Aly: all 12 accepted risks (section 7) accepted; quick fixes approved (api bound to 127.0.0.1, API keys hidden from the settings repr)
   - 2026-10-06 — from the 4.1 security review (HIGH, must close before any shared or deployed use): `POST …/ask` is an unauthenticated route that spends model tokens — no output cap (`max_tokens`) — closed in api 0.9.0 by `AI_MAX_OUTPUT_TOKENS` — no rate limit, no concurrency limit; each failed ask still stores the question; the first question becomes a title every user can list; stored answers replay as history (a successful jailbreak persists in a shared conversation)
   - 2026-10-06 — from the 2.2 security review, also cover: `GET /v1/conversations/{id}` returns every message unpaginated (a long thread = a large response; bounded today by the 4,000-character question cap in 4.1 and model-length answers); the conversation id appears in the framework's request span URL and uvicorn's access log (reaches App Insights if the exporter is on) — decide redaction vs accepted risk
 
