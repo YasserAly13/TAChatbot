@@ -1,8 +1,11 @@
-"""``/v1/conversations`` — create and list conversations (roadmap api 2.1, F2).
+"""``/v1/conversations`` — create, list (roadmap api 2.1) and read one with its messages
+(api 2.2) — F2.
 
-Conversations are shared — there is no owner until auth lands (ADR-0014). Titles and ids are
-user-linked data: they never go into logs, span attributes or metric attributes (the request
-metrics already use the route *template*, ``/v1/conversations``).
+Conversations are shared — there is no owner until auth lands (ADR-0014). Titles, ids and
+message content are user-linked data: they never go into this code's logs, span attributes or
+metric attributes (the request metric uses the route *template*,
+``/v1/conversations/{conversation_id}``). The framework's own request span and uvicorn's local
+access log carry the raw URL, id included.
 
 Timestamps are stored as naive UTC (``DATETIME2(3)``); responses attach UTC so they serialise
 with an explicit offset and browsers do not read them as local time.
@@ -12,16 +15,24 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
-from app.models.conversation import TITLE_MAX_LENGTH, Conversation
+from app.errors import ErrorBody, NotFound
+from app.logging_config import get_logger
+from app.models.conversation import TITLE_MAX_LENGTH, Conversation, Message
 from app.repositories import conversations as repo
+
+_log = get_logger("app.routers.conversations")
+
+# A module-level alias, not an inline annotation: with postponed annotations, ruff's
+# quoted-annotation fix would strip the quotes from an inline Literal["user", ...].
+MessageRole = Literal["user", "assistant"]
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -99,6 +110,58 @@ class ConversationList(BaseModel):
     count: int = Field(description="Number of items in this response (at most `limit`).")
 
 
+class Citation(BaseModel):
+    title: str
+    path: str
+
+
+class MessageOut(BaseModel):
+    id: UUID
+    role: MessageRole
+    content: str
+    citations: list[Citation] | None = Field(
+        description="The documents an assistant answer cites; null for user messages."
+    )
+    created_at: datetime
+
+    @field_validator("created_at")
+    @classmethod
+    def _attach_utc(cls, value: datetime) -> datetime:
+        return _utc(value)
+
+    @classmethod
+    def of(cls, message: Message) -> MessageOut:
+        return cls(
+            id=message.id,
+            role=message.role,  # type: ignore[arg-type]  # the CHECK constraint guarantees it
+            content=message.content,
+            citations=_parse_citations(message.citations),
+            created_at=message.created_at,
+        )
+
+
+class ConversationDetail(ConversationOut):
+    messages: list[MessageOut] = Field(description="Oldest first.")
+
+
+_citation_list = TypeAdapter(list[Citation])
+
+
+def _parse_citations(raw: str | None) -> list[Citation] | None:
+    """Stored JSON ``[{title, path}]`` → citations. The column only guarantees *valid JSON*
+    (``ISJSON``); a row with another shape degrades to ``null`` instead of failing the read.
+    Only the failure kind is logged — never the stored text."""
+    if raw is None:
+        return None
+    try:
+        return _citation_list.validate_json(raw)
+    except ValidationError as exc:
+        _log.warning(
+            "unreadable citations", reason="not_a_title_path_list", errors=exc.error_count()
+        )
+        return None
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_conversation(
     session: DbSession, body: ConversationCreate | None = None
@@ -120,3 +183,18 @@ async def list_conversations(
         ConversationSummary(id=c.id, title=c.title, updated_at=c.updated_at) for c in conversations
     ]
     return ConversationList(items=items, count=len(items))
+
+
+@router.get(
+    "/{conversation_id}",
+    responses={404: {"model": ErrorBody, "description": "No such conversation (`not_found`)"}},
+)
+async def read_conversation(conversation_id: UUID, session: DbSession) -> ConversationDetail:
+    """One conversation with its messages, oldest first. A malformed id is a 422."""
+    conversation = await repo.get_conversation_with_messages(session, conversation_id)
+    if conversation is None:
+        raise NotFound()
+    return ConversationDetail(
+        **ConversationOut.of(conversation).model_dump(),
+        messages=[MessageOut.of(m) for m in conversation.messages],
+    )

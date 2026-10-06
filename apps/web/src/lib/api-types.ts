@@ -91,10 +91,37 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/conversations/{conversation_id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read Conversation
+     * @description One conversation with its messages, oldest first. A malformed id is a 422.
+     */
+    get: operations['read_conversation_v1_conversations__conversation_id__get'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** Citation */
+    Citation: {
+      /** Path */
+      path: string;
+      /** Title */
+      title: string;
+    };
     /** ConversationCreate */
     ConversationCreate: {
       /**
@@ -102,6 +129,31 @@ export interface components {
        * @description Optional; missing or blank becomes "New conversation". At most 200 UTF-16 units after trimming (an emoji counts 2); no control characters.
        */
       title?: string | null;
+    };
+    /** ConversationDetail */
+    ConversationDetail: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Messages
+       * @description Oldest first.
+       */
+      messages: components['schemas']['MessageOut'][];
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
     };
     /** ConversationList */
     ConversationList: {
@@ -163,6 +215,31 @@ export interface components {
        * @description The request's trace id — the same value as the x-trace-id header.
        */
       trace_id: string;
+    };
+    /** MessageOut */
+    MessageOut: {
+      /**
+       * Citations
+       * @description The documents an assistant answer cites; null for user messages.
+       */
+      citations: components['schemas']['Citation'][] | null;
+      /** Content */
+      content: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: 'user' | 'assistant';
     };
   };
   responses: never;
@@ -299,6 +376,55 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['ConversationOut'];
+        };
+      };
+      /** @description Validation failed (`validation_error`) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+      /** @description Unhandled error (`internal_error`) */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+    };
+  };
+  read_conversation_v1_conversations__conversation_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        conversation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConversationDetail'];
+        };
+      };
+      /** @description No such conversation (`not_found`) */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
         };
       };
       /** @description Validation failed (`validation_error`) */

@@ -7,6 +7,26 @@ The two services version independently.
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-06
+
+### Added
+
+- **`GET /v1/conversations/{conversation_id}`** — one conversation with its messages, oldest
+  first: `{ id, title, created_at, updated_at, messages: [{ id, role, content, citations,
+  created_at }] }`; `citations` parsed to `[{ title, path }]` (or `null`); `404 not_found` for an
+  unknown id, `422 validation_error` for a non-UUID (roadmap api 2.2).
+- Repository `get_conversation_with_messages` — loads messages explicitly (`selectinload`; the
+  relationship is `lazy="raise"`).
+
+### Changed
+
+- Messages read oldest first by `(created_at, id)`, and `add_message` makes each new message's
+  `created_at` strictly later than the conversation's last update — a question and its answer
+  stored in the same millisecond can no longer read out of order.
+- A stored `citations` value that is valid JSON but not `[{title, path}]` reads as `null` and
+  logs only the failure kind, never the stored text. `openapi.json` and web `api-types.ts`
+  regenerated.
+
 ## [0.5.0] — 2026-10-06
 
 ### Added

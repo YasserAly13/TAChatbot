@@ -99,7 +99,8 @@ def test_python_side_defaults_give_an_id_and_the_default_title() -> None:
 
 def test_messages_load_oldest_first() -> None:
     order_by = Conversation.messages.property.order_by
-    assert [str(column) for column in order_by] == ["messages.created_at"]
+    # created_at, then id so equal timestamps never read in a varying order
+    assert [str(column) for column in order_by] == ["messages.created_at", "messages.id"]
 
 
 def test_role_check_is_built_from_the_roles_constant() -> None:
