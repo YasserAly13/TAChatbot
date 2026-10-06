@@ -6,8 +6,9 @@ _The project's **own** Azure SQL Database (created by the use-case Bicep deploym
 
 ## Overview
 
-- **Azure resource:** logical server `sql-<slug>-<env>` · database `<slug>` · environments:
-  dev / staging / prod (`infra/modules/sql-database.bicep` via `infra/main.bicep`)
+- **Azure resource:** logical server `sql-sandbox-test2-fayed` · database
+  `sqldb-sandbox-test2-yasser` · environment: dev only — **pre-provisioned**, not created by this
+  project's Bicep (`ARCHITECTURE.md` → B1)
 - **Access from `apps/api`:** read/write via `DATABASE_URL` (Key Vault secret `DATABASE-URL`;
   managed identity when deployed)
 - **Service tier / SKU:** _(e.g. `S0` dev, `S2` prod — decides whether `ONLINE` index builds are available)_

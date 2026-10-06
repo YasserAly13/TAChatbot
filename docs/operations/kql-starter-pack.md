@@ -1,6 +1,6 @@
 # KQL starter pack
 
-Copy-paste queries for the AI Accelerator's telemetry (roadmap Phase 6). Run them
+Copy-paste queries for the Team Assistant's telemetry (roadmap Phase 6). Run them
 in the **Log Analytics workspace** (`log-<baseName>`) or the App Insights
 component's _Logs_ blade — both hit the same workspace tables because the
 component is workspace-based.
@@ -43,7 +43,7 @@ union AppRequests, AppDependencies, AppTraces, AppExceptions, AppEvents
 ```
 
 The chain is healthy when ONE `OperationId` covers rows from both
-`AppRoleName`s (`ai-accelerator-web|api`).
+`AppRoleName`s (`team-assistant-web|api`).
 
 ## 2. A request and its logs together (Phase 1 acceptance join)
 
@@ -92,9 +92,9 @@ AppDependencies
 ```
 
 The custom upstream-hop histogram (bounded `target`/`outcome` attributes; `target` is
-`api | other`) lives in `AppMetrics` as `ai-accelerator.http.client.hop.duration` — see
+`api | other`) lives in `AppMetrics` as `team-assistant.http.client.hop.duration` — see
 query 6. DB calls (once real queries exist) appear here as `mssql` dependencies (SQLAlchemy
-instrumentation over aioodbc) under `ai-accelerator-api`.
+instrumentation over aioodbc) under `team-assistant-api`.
 
 ## 5. Ingestion volume by table (cost triage)
 
@@ -113,13 +113,13 @@ guardrails_).
 
 ```kusto
 AppMetrics
-| where TimeGenerated > ago(1h) and Name startswith "ai-accelerator."
+| where TimeGenerated > ago(1h) and Name startswith "team-assistant."
 | summarize samples = count() by Name, AppRoleName
 | order by Name asc
 ```
 
-Expected names: `ai-accelerator.http.server.duration`,
-`ai-accelerator.http.client.hop.duration`, `ai-accelerator.bff.upstream.failures`
+Expected names: `team-assistant.http.server.duration`,
+`team-assistant.http.client.hop.duration`, `team-assistant.bff.upstream.failures`
 (web only). Runtime metrics (event-loop/GC/heap, CPython runtime) land in
 `AppMetrics`/`AppPerformanceCounters` under their OTel names.
 

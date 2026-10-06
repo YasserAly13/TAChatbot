@@ -4,13 +4,13 @@
 using './main.bicep'
 
 param environment = 'prod'
-param projectSlug = 'ai-accelerator'
+param projectSlug = 'team-assistant'
 param platform = loadJsonContent('platform/prod.json')
 
 param deployContainerApps = false
 
-param apiImage = '${loadJsonContent('platform/prod.json').containerRegistry.loginServer}/ai-accelerator-api:prod'
-param webImage = '${loadJsonContent('platform/prod.json').containerRegistry.loginServer}/ai-accelerator-web:prod'
+param apiImage = '${loadJsonContent('platform/prod.json').containerRegistry.loginServer}/team-assistant-api:prod'
+param webImage = '${loadJsonContent('platform/prod.json').containerRegistry.loginServer}/team-assistant-web:prod'
 
 param sqlEntraAdmin = {
   login: 'ai-prod-sql-admins'

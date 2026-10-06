@@ -1,6 +1,6 @@
 # Operations
 
-This section is for people running or debugging the **AI Accelerator** day to day — deploying
+This section is for people running or debugging the **Team Assistant** day to day — deploying
 the infrastructure that exists, verifying telemetry after a change, and triaging incidents.
 "Operating this platform" today means **observability first**: the only infrastructure that is
 actually deployed is the Log Analytics / Application Insights / alerting stack in

@@ -7,10 +7,10 @@ What is recorded — and what is NOT:
   ``gen_ai.request.model`` (the deployment), ``gen_ai.usage.input_tokens`` /
   ``gen_ai.usage.output_tokens``, plus our ``trace_id``.
 - Metrics (bounded attributes only — a deployment name is a short, fixed set):
-  ``ai-accelerator.ai.model.duration`` (ms, by deployment/outcome),
-  ``ai-accelerator.ai.model.tokens`` (by deployment/token_type),
-  ``ai-accelerator.ai.model.failures`` (by deployment/error_kind),
-  ``ai-accelerator.ai.retrieval.duration`` (ms, by outcome).
+  ``team-assistant.ai.model.duration`` (ms, by deployment/outcome),
+  ``team-assistant.ai.model.tokens`` (by deployment/token_type),
+  ``team-assistant.ai.model.failures`` (by deployment/error_kind),
+  ``team-assistant.ai.retrieval.duration`` (ms, by outcome).
 - One custom event per model call (``ai.model_call``) with the same bounded attributes.
 - **Never** the prompt, the completion, retrieved text, or user identifiers — in spans, logs,
   metrics or events. PII in chat history is a data-classification concern for the project;
@@ -36,7 +36,7 @@ from app.metrics import get_meter
 from app.tracing import get_trace_id
 
 GEN_AI_SYSTEM = "azure_openai"
-_TRACER_NAME = "ai-accelerator.ai"
+_TRACER_NAME = "team-assistant.ai"
 
 _model_duration: Histogram | None = None
 _model_tokens: Counter | None = None
@@ -49,19 +49,19 @@ def _instruments() -> tuple[Histogram, Counter, Counter, Histogram]:
     meter = get_meter("ai")
     if _model_duration is None:
         _model_duration = meter.create_histogram(
-            "ai-accelerator.ai.model.duration", unit="ms", description="Model call duration"
+            "team-assistant.ai.model.duration", unit="ms", description="Model call duration"
         )
     if _model_tokens is None:
         _model_tokens = meter.create_counter(
-            "ai-accelerator.ai.model.tokens", unit="1", description="Tokens by type"
+            "team-assistant.ai.model.tokens", unit="1", description="Tokens by type"
         )
     if _model_failures is None:
         _model_failures = meter.create_counter(
-            "ai-accelerator.ai.model.failures", unit="1", description="Failed model calls"
+            "team-assistant.ai.model.failures", unit="1", description="Failed model calls"
         )
     if _retrieval_duration is None:
         _retrieval_duration = meter.create_histogram(
-            "ai-accelerator.ai.retrieval.duration", unit="ms", description="Retrieval duration"
+            "team-assistant.ai.retrieval.duration", unit="ms", description="Retrieval duration"
         )
     return _model_duration, _model_tokens, _model_failures, _retrieval_duration
 

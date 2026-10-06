@@ -34,7 +34,7 @@ import { getTraceId } from '@/lib/trace';
 
 const SERVICE = 'web';
 const ORIGIN = '0eb0';
-const OTEL_LOGGER_NAME = 'ai-accelerator-web';
+const OTEL_LOGGER_NAME = 'team-assistant-web';
 
 export const REDACTION_CENSOR = '[redacted]';
 

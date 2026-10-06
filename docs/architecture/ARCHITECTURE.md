@@ -1,6 +1,6 @@
 # Architecture — living document
 
-This is the **one architecture file** for a project built on the AI Accelerator. It has two
+This is the **one architecture file** for a project built on the Team Assistant. It has two
 parts with different owners:
 
 | Part                                                               | Owner                                                                  | Rule                                                                                                                                                                                                                                       |
@@ -68,7 +68,7 @@ domain, no auth, no AI feature — those are the project's job, built in the slo
 flowchart LR
     user(["Browser user"])
 
-    subgraph platform["Project platform (built on the AI Accelerator)"]
+    subgraph platform["Project platform (built on the Team Assistant)"]
         web["apps/web<br/>Next.js BFF + UI"]
         api["apps/api<br/>FastAPI — backend + AI runtime"]
     end
@@ -207,69 +207,94 @@ Honest state of what exists (see also the root `README.md` → _Scope & delivery
 > from `docs/design/`. Delete the guidance text in each section once you have written the real
 > content.
 
+**Complementary document:** the full project detail — feature stories, AI components, table
+definitions, the `/v1` API surface, decisions and the request flow — lives in
+[`TAChatbot/architecture.md`](TAChatbot/architecture.md). Each section below summarises it and
+links to the matching section; the two are read together, and the complementary document is
+authoritative for detail. The `/chat` wireframe is
+[`docs/design/wireframes/chat.md`](../design/wireframes/chat.md).
+
 ### B1. Project summary
 
-_One paragraph: what the application does, for whom, and the business outcome it serves. Name
-the project's environments and the Azure subscription/resource-group naming convention._
+**Team Assistant** (slug `team-assistant`) is an internal chat assistant that answers the team's
+questions from its own documentation, with citations, and keeps conversation history. A user
+opens `/chat`, starts a conversation and asks a question; the answer streams back and cites the
+document it came from. Conversations and messages are stored in Azure SQL; the corpus is the
+repo's own `docs/**/*.md`, indexed in Azure AI Search. The outcome: faster answers to "how do we
+do X here?" without searching the docs by hand.
+
+**Environments.** `dev` only. Every Azure resource already exists (pre-provisioned sandbox) and
+**this project deploys no infrastructure in any environment** — no Bicep apply, no
+`infra/platform/*.json` or `main.<env>.bicepparam` values maintained; the api runs locally against
+the resources named in `apps/api/.env`:
+
+| Resource                    | Name (dev)                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------ |
+| Azure AI Foundry endpoint   | `aif-sandbox-test2-fayed` — chat `gpt-4.1`, embedding `text-embedding-3-large` (3072 dimensions) |
+| Azure AI Search             | `srch-sandbox-test2-yasser` — index `team-assistant-docs`                                        |
+| Azure SQL server / database | `sql-sandbox-test2-fayed` / `sqldb-sandbox-test2-yasser`                                         |
+| Model auth (local)          | API key (`AZURE_AI_AUTH_MODE=api_key`), value in the gitignored `.env`                           |
+
+**Team.** Yasser Aly ([@YasserAly13](https://github.com/YasserAly13)) — admin, backend and
+frontend (one-person team; sole code owner).
 
 ### B2. Feature map
 
-_The features the application will have, grouped by area. One line each with the owning
-service(s) and a link to the roadmap item once planned. This is the input to `plan-roadmap`._
+Detail and user stories: [`TAChatbot/architecture.md` → B2](TAChatbot/architecture.md#b2-feature-map).
 
-| Area | Feature | Services touched (web / api / ai / infra) | Roadmap item |
-| ---- | ------- | ----------------------------------------- | ------------ |
-|      |         |                                           |              |
+| Area      | Feature                      | Services touched (web / api / ai / infra) | Roadmap item |
+| --------- | ---------------------------- | ----------------------------------------- | ------------ |
+| Chat      | F1 — Chat with citations     | web, api, ai                              | _(planned)_  |
+| Chat      | F2 — Conversation history    | web, api (model + migration)              | _(planned)_  |
+| Knowledge | F3 — Knowledge base re-index | api, ai                                   | _(planned)_  |
 
 ### B3. AI components
 
-_Which model deployments (Azure AI Foundry project, deployment names, regions), which
-LangGraph graphs/agents exist and what each does, which tools they may call (retrieval,
-external-DB queries, actions), prompt ownership, evaluation approach, guardrails (content
-filters, injection defences, PII handling)._
-
-| Component | Type (graph / tool / prompt / retriever) | Model / deployment | Data it may touch | Notes |
-| --------- | ---------------------------------------- | ------------------ | ----------------- | ----- |
-|           |                                          |                    |                   |       |
+The template's `retrieve → answer` graph over AI Search index `team-assistant-docs` (`top_k = 5`)
+on the `gpt-4.1` / `text-embedding-3-large` deployments (B1); memory = the last 10 messages;
+background, single-flight ingestion of `docs/**/*.md`. Detail, limits and failure modes:
+[`TAChatbot/architecture.md` → B3](TAChatbot/architecture.md#b3-ai-components).
 
 ### B4. Data stores
 
-_The project's own database (from `docs/design/db-design.md`), every external data source (from
-`docs/design/external-systems.md`), the vector store, blob/file stores. For each: Azure
-resource, environment, access mode (read/write vs read-only), owner, retention/PII class._
-
-| Store | Kind | Environment(s) | Access from api | Owner | PII / retention |
-| ----- | ---- | -------------- | --------------- | ----- | --------------- |
-|       |      |                |                 |       |                 |
+The project's Azure SQL database (B1) with tables `conversations` and `messages` — read/write
+from `apps/api`; messages kept indefinitely; no owner per conversation until auth lands. The
+vector store is the AI Search index above. Column definitions and the `/v1` API surface:
+[`TAChatbot/architecture.md` → B4 / B4a](TAChatbot/architecture.md#b4-data-stores-azure-sql-owned-by-appsapi).
 
 ### B5. Integrations
 
-_External APIs, identity providers, messaging/queues, file ingestion sources. Direction,
-protocol, auth method, timeout policy, and the traced helper used._
+None — no external databases or APIs ([`TAChatbot/architecture.md` → B5](TAChatbot/architecture.md#b5-integrations)).
 
 ### B6. Infrastructure topology
 
-_Per environment: (a) the **platform references** this use case consumes — resource group,
-Container Apps Environment, registry, Foundry endpoint + the deployment names it uses, AI Search
-service — exactly as in `infra/platform/<env>.json`; (b) the **owned resources** — container
-apps, Azure SQL server/database, storage, Key Vault, App Insights, the Search index name —
-exactly as in `main.<env>.bicepparam`; (c) networking (firewall allowlist today; private
-endpoints later); (d) the identities and the **grants requested** from the cloud team
-(`infra/grant-request.md`) with their status. Add a diagram when it stops fitting in a table._
+`dev` only, everything pre-provisioned (B1); **no infrastructure is deployed by this project in
+any environment** and the template's `infra/` tier (ADR-0012) is kept but unused. The api and web
+run locally. See [`TAChatbot/architecture.md` → B6](TAChatbot/architecture.md#b6-infrastructure-topology).
 
 ### B7. Security and auth posture
 
-_Who the users are, how they authenticate (or the explicit "internal-only, no auth" decision),
-authorization model (thread/record ownership, roles), data classification, threat models
-written (`docs/security/threat-models/`)._
+**Internal-only, no user auth** (team decision D8). Okta is the planned module (roadmap Phase 8)
+and needs an ADR and a threat model before any code. Until then every user can read every
+conversation. No external databases (B5: none).
+
+Known exposure to revisit: the dev Azure SQL firewall currently allows all IP addresses (stated
+at project setup); the model and search keys are API keys held only in the local `.env`.
+
+_Still to write: authorization model, data classification, threat models
+(`docs/security/threat-models/`)._
 
 ### B8. Decisions and open questions
 
-_Links to the project's ADRs (`docs/adr/`) and the questions still open, each with an owner
-and a date._
+Six decisions are recorded in
+[`TAChatbot/architecture.md` → B8](TAChatbot/architecture.md#b8-decisions-and-open-questions)
+(corpus delivery, ingest behaviour, conversation titles, history length, retention, no
+rename/delete). No project ADRs yet; shared conversations without an owner (B7) is to be
+recorded as a Proposed ADR.
 
 ### B9. Change log of this document
 
-| Date | Who | What changed |
-| ---- | --- | ------------ |
-|      |     |              |
+| Date       | Who        | What changed                                                                                                                                                       |
+| ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-10-06 | Yasser Aly | `/init-project`: renamed to Team Assistant; B1 (summary, dev-only pre-provisioned resources, team) and B7 (no auth, Okta later) filled                             |
+| 2026-10-06 | Yasser Aly | B2–B6 and B8 summarised with links to the complementary `TAChatbot/architecture.md`; `/chat` wireframe added to `docs/design/wireframes/`; code owner @YasserAly13 |

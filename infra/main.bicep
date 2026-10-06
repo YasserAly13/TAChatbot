@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// AI Accelerator — the USE-CASE tier of one project, per environment (ADR-0012).
+// Team Assistant — the USE-CASE tier of one project, per environment (ADR-0012).
 //
 // Two tiers:
 //   • PLATFORM tier (cloud team, shared by every use case, pre-exists): Azure AI Foundry
@@ -48,7 +48,7 @@ type Platform = {
 @description('Project slug (kebab-case, ≤ 15 chars). Drives every resource name; /rename-project rewrites it.')
 @minLength(3)
 @maxLength(15)
-param projectSlug string = 'ai-accelerator'
+param projectSlug string = 'team-assistant'
 
 @allowed(['dev', 'staging', 'prod'])
 param environment string

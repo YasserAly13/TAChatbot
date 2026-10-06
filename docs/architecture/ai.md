@@ -108,7 +108,7 @@ and states that context is data, not instructions.
 **`telemetry.py`.** `model_call_span(deployment)` wraps every model call: a span named
 `gen_ai.chat` with `gen_ai.system`, `gen_ai.operation.name`, `gen_ai.request.model`, the
 `trace_id`, and — after the call — `gen_ai.usage.input_tokens` / `output_tokens`; metrics
-`ai-accelerator.ai.model.duration`, `.model.tokens`, `.model.failures`, `.retrieval.duration`
+`team-assistant.ai.model.duration`, `.model.tokens`, `.model.failures`, `.retrieval.duration`
 (bounded attributes: deployment, outcome, token type, error kind); one `ai.model_call` custom
 event; one structured log line. **No prompt, completion, retrieved text or user identifier
 anywhere.** The OTel GenAI auto-instrumentation packages are deliberately not used (pin coupling
@@ -188,6 +188,6 @@ whenever a prompt changes. A live-model tier is opt-in (`AI_EVAL_LIVE=true`).
 - [ADR-0009](../adr/0009-ai-runtime-langchain-langgraph-foundry.md) — the decision and the
   alternatives rejected.
 - [data.md](data.md) — the read-only external engine the query tool uses.
-- [observability.md](observability.md) — where the `gen_ai` spans and `ai-accelerator.ai.*`
+- [observability.md](observability.md) — where the `gen_ai` spans and `team-assistant.ai.*`
   metrics land.
 - The shared Foundry and AI Search service (platform tier) and the project's index — [`infra/README.md`](../../infra/README.md), [`infra/platform/README.md`](../../infra/platform/README.md).

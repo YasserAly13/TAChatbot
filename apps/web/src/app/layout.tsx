@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'AI Accelerator',
-  description: 'AI Accelerator — web BFF + UI',
+  title: 'Team Assistant',
+  description: 'Team Assistant — web BFF + UI',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

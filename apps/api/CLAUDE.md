@@ -1,8 +1,8 @@
 # apps/api — CLAUDE.md
 
-Python 3.14 + FastAPI service for the **AI Accelerator** (the brandless starter template
+Python 3.14 + FastAPI service for the **Team Assistant** (the brandless starter template
 Orion Digital Solutions built for the Diriyah Company AI team), managed by **uv**. Port **8000**,
-trace origin **`0c70`**, OTEL service `ai-accelerator-api`. Project-wide rules and the
+trace origin **`0c70`**, OTEL service `team-assistant-api`. Project-wide rules and the
 shared `trace_id` / observability contract live in the root [CLAUDE.md](../../CLAUDE.md) and
 [README.md](../../README.md); service overview in [README.md](README.md) (this folder). Treat
 this as a starting map; read the actual files when you need detail.
@@ -41,7 +41,7 @@ this as a starting map; read the actual files when you need detail.
   **`TELEMETRY_AUTH_MODE`** (`managed_identity` → Entra ID credential; a mistyped value
   disables observability VISIBLY — rule 60 → _Ingestion auth_). See
   `.claude/rules/60-observability.md`.
-- `metrics.py` — `get_meter(scope)` (namespaced `ai-accelerator.<scope>`, no-op when degraded),
+- `metrics.py` — `get_meter(scope)` (namespaced `team-assistant.<scope>`, no-op when degraded),
   `status_class`/`resolve_target` (bounded labels), starter instruments: request-duration +
   chain-hop histograms. **Bounded attributes only** — rule 60 → _Metrics & events_.
 - `events.py` — `track_event(name, attrs)` → App Insights `customEvents` (via the

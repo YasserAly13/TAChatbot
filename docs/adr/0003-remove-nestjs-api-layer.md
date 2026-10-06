@@ -39,7 +39,7 @@ reserved**: it is never reassigned, so historical telemetry stays unambiguous.
 - Bad: the demo `/ping/chain` and `/info/chain` endpoints and the BFF's `-python`/`-chain` routes
   are gone (there is no second hop to demonstrate); the two remaining BFF demo routes
   (`/api/ping-backend`, `/api/info-backend`) target python.
-- Bad: the SonarCloud project `orion-digital-solutions_ai-accelerator-api` and any Azure alert /
+- Bad: the SonarCloud project `orion-digital-solutions_team-assistant-api` and any Azure alert /
   availability-test parameters that named `api` must be retired by a human (org-level actions).
 
 ## Alternatives considered

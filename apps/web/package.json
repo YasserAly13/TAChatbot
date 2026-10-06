@@ -1,8 +1,8 @@
 {
-  "name": "@ai-accelerator/web",
+  "name": "@team-assistant/web",
   "private": true,
   "version": "0.1.0",
-  "description": "AI Accelerator — Next.js BFF + UI. Part of the brandless starter template built by Orion Digital Solutions for the Diriyah Company AI team.",
+  "description": "Team Assistant — Next.js BFF + UI. Part of the brandless starter template built by Orion Digital Solutions for the Diriyah Company AI team.",
   "author": {
     "name": "Orion Digital Solutions",
     "url": "https://www.orion360.com/"

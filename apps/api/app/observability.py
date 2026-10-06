@@ -147,7 +147,7 @@ def apply_resource_defaults() -> None:
     Read by the distro's ``Resource.create()``; operator-provided
     OTEL_SERVICE_NAME / OTEL_RESOURCE_ATTRIBUTES values are never overridden.
 
-    - service.name        -> cloud role name (default: ai-accelerator-api)
+    - service.name        -> cloud role name (default: team-assistant-api)
     - service.instance.id -> cloud role instance (container replica name,
       then HOSTNAME, then socket.gethostname() fallback)
     """

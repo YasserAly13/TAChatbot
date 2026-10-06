@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     """Application factory."""
     app = FastAPI(
-        title="AI Accelerator — api",
+        title="Team Assistant — api",
         version="0.0.0",
         lifespan=lifespan,
     )

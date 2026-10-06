@@ -3,7 +3,7 @@ import { metrics, type Counter, type Histogram, type Meter } from '@opentelemetr
 /**
  * Custom-metric helpers (Phase 3 — see .claude/rules/60-observability.md).
  *
- * getMeter() returns namespaced meters ("ai-accelerator.<scope>") from the
+ * getMeter() returns namespaced meters ("team-assistant.<scope>") from the
  * GLOBAL MeterProvider. In degraded mode no provider is registered, so the
  * OTel API hands back its no-op proxy meter — feature code records metrics
  * unconditionally and never null-checks telemetry.
@@ -14,9 +14,9 @@ import { metrics, type Counter, type Histogram, type Meter } from '@opentelemetr
  * attribute combination as its own series (cap: 5,000 series/metric/day).
  */
 
-const METER_PREFIX = 'ai-accelerator';
+const METER_PREFIX = 'team-assistant';
 
-/** Namespaced meter accessor: getMeter("http") → meter "ai-accelerator.http". */
+/** Namespaced meter accessor: getMeter("http") → meter "team-assistant.http". */
 export function getMeter(scope: string): Meter {
   return metrics.getMeter(`${METER_PREFIX}.${scope}`);
 }
@@ -54,7 +54,7 @@ let hopDuration: Histogram | undefined;
 let upstreamFailures: Counter | undefined;
 
 function serverDurationHistogram(): Histogram {
-  serverDuration ??= getMeter('http').createHistogram('ai-accelerator.http.server.duration', {
+  serverDuration ??= getMeter('http').createHistogram('team-assistant.http.server.duration', {
     description: 'Inbound BFF request duration by route class and status class',
     unit: 'ms',
   });
@@ -62,7 +62,7 @@ function serverDurationHistogram(): Histogram {
 }
 
 function hopDurationHistogram(): Histogram {
-  hopDuration ??= getMeter('http').createHistogram('ai-accelerator.http.client.hop.duration', {
+  hopDuration ??= getMeter('http').createHistogram('team-assistant.http.client.hop.duration', {
     description: 'Outbound service-to-service hop duration by target and outcome',
     unit: 'ms',
   });
@@ -70,7 +70,7 @@ function hopDurationHistogram(): Histogram {
 }
 
 function upstreamFailureCounter(): Counter {
-  upstreamFailures ??= getMeter('bff').createCounter('ai-accelerator.bff.upstream.failures', {
+  upstreamFailures ??= getMeter('bff').createCounter('team-assistant.bff.upstream.failures', {
     description: 'BFF upstream calls that failed (network error or 5xx) by target and reason',
   });
   return upstreamFailures;

@@ -75,7 +75,7 @@ database is a **human** step — agents use only the offline / `heads` / `check`
 | `uv run --directory apps/api alembic upgrade head --sql`                 | Render the upgrade SQL offline, for review              | No          | Offline mode: no DBAPI connection. Today prints only `BEGIN;` / `COMMIT;` (no revisions). Review this before anyone applies a revision.                             |
 | `uv run --directory apps/api alembic revision --autogenerate -m "<msg>"` | Generate a revision from the diff between models and DB | **Yes**     | Needs a reachable **dev** database. Only models imported in `app/models/__init__.py` are seen. Post-write hooks run `ruff format` / `ruff check --fix` on the file. |
 | `uv run --directory apps/api alembic check`                              | Report model/migration drift                            | **Yes**     | Fails when autogenerate would produce changes.                                                                                                                      |
-| `alembic upgrade head` (human only)                                      | Apply pending revisions                                 | **Yes**     | Never run by the project or its agents. Also runnable from the image: `docker run --rm -e DATABASE_URL=… ai-accelerator-api alembic upgrade head`.                  |
+| `alembic upgrade head` (human only)                                      | Apply pending revisions                                 | **Yes**     | Never run by the project or its agents. Also runnable from the image: `docker run --rm -e DATABASE_URL=… team-assistant-api alembic upgrade head`.                  |
 
 From inside `apps/api`, drop `--directory apps/api` (`uv run alembic …`).
 

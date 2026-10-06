@@ -4,15 +4,15 @@
 using './main.bicep'
 
 param environment = 'dev'
-param projectSlug = 'ai-accelerator'
+param projectSlug = 'team-assistant'
 param platform = loadJsonContent('platform/dev.json')
 
 // Step 1 of the first deployment: false until the cloud team has granted the roles in
 // infra/grant-request.md (AcrPull above all). Then true.
 param deployContainerApps = false
 
-param apiImage = '${loadJsonContent('platform/dev.json').containerRegistry.loginServer}/ai-accelerator-api:dev'
-param webImage = '${loadJsonContent('platform/dev.json').containerRegistry.loginServer}/ai-accelerator-web:dev'
+param apiImage = '${loadJsonContent('platform/dev.json').containerRegistry.loginServer}/team-assistant-api:dev'
+param webImage = '${loadJsonContent('platform/dev.json').containerRegistry.loginServer}/team-assistant-web:dev'
 
 // Entra admin of the SQL server — a group is recommended. Object IDs are not secrets.
 param sqlEntraAdmin = {

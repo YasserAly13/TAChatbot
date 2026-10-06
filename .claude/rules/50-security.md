@@ -1,5 +1,5 @@
 ---
-description: Security baseline for the AI Accelerator. Always loaded.
+description: Security baseline for the Team Assistant. Always loaded.
 paths:
   - '**/*'
 ---

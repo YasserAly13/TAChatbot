@@ -1,6 +1,6 @@
 ---
 name: lsp-refactor
-description: Type-safe, verification-driven refactors (rename / change signature / move file) across the AI Accelerator. Uses the TypeScript compiler (and ruff for Python) as the source of truth instead of freeform regex edits. Use whenever a change crosses files.
+description: Type-safe, verification-driven refactors (rename / change signature / move file) across the Team Assistant. Uses the TypeScript compiler (and ruff for Python) as the source of truth instead of freeform regex edits. Use whenever a change crosses files.
 ---
 
 # Verification-driven refactor

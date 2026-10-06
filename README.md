@@ -1,8 +1,14 @@
-# AI Accelerator
+# Team Assistant
 
-> A brandless starter template that the **[Diriyah Company](https://www.diriyahcompany.sa/en/) AI team** uses to accelerate
-> the development of its AI projects. Built and maintained by **[Orion Digital Solutions](https://www.orion360.com/)** for the
-> Diriyah Company. Every project-identity string is a placeholder — clone, rename, build.
+> An internal chat assistant that answers the team's questions from its own documentation, with
+> citations, and keeps conversation history. Open `/chat`, ask a question, and the answer streams
+> back citing the document it came from. Internal-only, no login (Okta later); runs against
+> pre-provisioned Azure resources in `dev` — see
+> [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) → Part B.
+>
+> Built on the **AI Accelerator** — the starter template the **[Diriyah Company](https://www.diriyahcompany.sa/en/) AI team** uses to accelerate
+> the development of its AI projects, built and maintained by **[Orion Digital Solutions](https://www.orion360.com/)** for the
+> Diriyah Company.
 
 ## Overview
 
@@ -508,6 +514,8 @@ deploy locally to `dev` only; agents may only `bicep build`/`lint`. Roles the pr
 shared resources are **requested** (`infra/grant-request.md`), never assigned here. Nothing is
 deployed yet — the first `dev` deploy is a human step once the cloud team's manifests and
 building blocks are in. Everything else: [`infra/README.md`](infra/README.md).
-#   D i r i y a h _ T e m p l a t e _ V 0  
- #   D i r i y a h _ T e m p l a t e _ V 0  
+#   D i r i y a h * T e m p l a t e * V 0 
+ 
+ #   D i r i y a h * T e m p l a t e * V 0 
+ 
  

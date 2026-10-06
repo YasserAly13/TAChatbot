@@ -1,7 +1,7 @@
 {
-  "name": "ai-accelerator",
+  "name": "team-assistant",
   "version": "0.0.0",
-  "description": "AI Accelerator — brandless starter template for the Diriyah Company AI team, built by Orion Digital Solutions: Next.js web (BFF) + FastAPI api (SQLAlchemy 2 async + Alembic), with end-to-end trace_id propagation and Azure Monitor OpenTelemetry observability.",
+  "description": "Team Assistant — brandless starter template for the Diriyah Company AI team, built by Orion Digital Solutions: Next.js web (BFF) + FastAPI api (SQLAlchemy 2 async + Alembic), with end-to-end trace_id propagation and Azure Monitor OpenTelemetry observability.",
   "author": {
     "name": "Orion Digital Solutions",
     "url": "https://www.orion360.com/"

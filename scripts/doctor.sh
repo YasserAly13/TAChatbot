@@ -85,7 +85,7 @@ row() {
 }
 
 # ---- checks ------------------------------------------------------------------
-[ $JSON = 0 ] && printf 'AI Accelerator doctor — OS: %s\n\n' "$OS"
+[ $JSON = 0 ] && printf 'Team Assistant doctor — OS: %s\n\n' "$OS"
 
 # repo integrity — a copy made without hidden folders loses .github/ and .claude/ (seen in the first dry run)
 REPO_MISSING=""

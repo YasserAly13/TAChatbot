@@ -1,8 +1,8 @@
 # apps/web — CLAUDE.md
 
-Next.js 16 (App Router) **BFF + UI** for the **AI Accelerator** (the brandless starter
+Next.js 16 (App Router) **BFF + UI** for the **Team Assistant** (the brandless starter
 template Orion Digital Solutions built for the Diriyah Company AI team). Port **3000**, trace
-origin **`0eb0`**, OTEL service `ai-accelerator-web`. Project-wide rules and the shared
+origin **`0eb0`**, OTEL service `team-assistant-web`. Project-wide rules and the shared
 `trace_id` / observability contract live in the root [CLAUDE.md](../../CLAUDE.md) and
 [README.md](../../README.md) — this file is the web-specific context. Treat it as a starting
 map; read the actual files when you need detail.
@@ -38,7 +38,7 @@ URL.
   forwards `x-trace-id`, bounds every call with `AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)` (10 s)
   unless the caller passes its own `signal`, records hop-duration + upstream-failure metrics; traceparent +
   dependency span via the undici instrumentation), `getTraceId`, origin `0eb0`.
-- `src/lib/metrics.ts` — `getMeter(scope)` (namespaced `ai-accelerator.<scope>`, no-op when
+- `src/lib/metrics.ts` — `getMeter(scope)` (namespaced `team-assistant.<scope>`, no-op when
   degraded), `statusClass`/`resolveTarget` (bounded labels: `api` | `other`), starter instruments:
   request-duration + chain-hop histograms, upstream-failure counter. **Bounded attributes
   only** — rule 60 → _Metrics & events_.

@@ -1,5 +1,5 @@
 # =============================================================================
-# AI Accelerator — task runner (mirrors Makefile, same targets).
+# Team Assistant — task runner (mirrors Makefile, same targets).
 #   Local dev:   just install  |  just dev
 #   Docker:      just build    |  just up   |  just down   |  just logs
 #   Infra:       just infra-build  |  just infra-whatif dev  |  just infra-deploy dev (humans, dev only)
