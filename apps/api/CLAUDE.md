@@ -62,10 +62,16 @@ this as a starting map; read the actual files when you need detail.
   singleton**, `dispose_engine()`), `session.py` (`get_session()` FastAPI dependency — the ONLY
   way routes get a handle on the project DB), `external.py` (second lazy **read-only** engine
   for `EXTERNAL_DATABASE_URL`: `get_external_session()`, non-SELECT statements refused).
-- `models/` — 2.0-style `Mapped[]` models subclassing `app.db.Base`; **empty placeholder** today
-  (one commented example). Import new model modules in `models/__init__.py` so Alembic sees them.
+- `routers/conversations.py` — `/v1/conversations` (POST create, GET list; roadmap api 2.1).
+  Pydantic request/response models live beside the routes; responses attach UTC to timestamps.
+- `repositories/` — query functions taking an `AsyncSession` (`conversations.py`: create, list,
+  get, add message, rename, touch). They add + flush; the route commits (one request = one
+  transaction). They set ids and millisecond UTC timestamps themselves, so no refresh is needed.
+- `models/` — 2.0-style `Mapped[]` models subclassing `app.db.Base` (`conversation.py`). Import
+  new model modules in `models/__init__.py` so Alembic sees them.
 - `../alembic/` + `../alembic.ini` — Alembic (async `env.py`, URL from `DATABASE_URL` via
-  `app.config`, never from the ini); `versions/` is **empty** — migrations are not run.
+  `app.config` — `.env` loaded like `app.main` — never from the ini); revision `7c1d4e2a9b30`,
+  applied by a named human only (ADR-0013).
 - `ai/` — the AI runtime (ADR-0009, rule 70): `config.py` (`AZURE_AI_*`/`AZURE_SEARCH_*`/`AI_*`),
   `client.py` (**the mock seam** — `get_chat_model()`/`get_embeddings()`, managed identity when
   deployed), `graph.py` (`build_graph()` → `retrieve → answer` LangGraph, `ask()`),
