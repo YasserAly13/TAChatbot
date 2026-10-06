@@ -1,0 +1,279 @@
+/* Tailwind CSS v4 (ADR-0010) — utilities for components; the variables below style the demo page. */
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light dark;
+
+  /* Light palette (default). Dark overrides live in the media query below. */
+  --bg: #f7f8fa;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f6;
+  --border: #d9dde3;
+  --text: #1b1f24;
+  --text-muted: #5c6672;
+  --accent: #0a6cff;
+  --accent-hover: #0858d0;
+  --accent-soft: rgba(10, 108, 255, 0.12);
+  --ok: #1f9d57;
+  --error: #c0392b;
+  --error-soft: rgba(192, 57, 43, 0.1);
+  --code-bg: rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --radius: 10px;
+
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1116;
+    --surface: #171b21;
+    --surface-muted: #1d222a;
+    --border: #2b313a;
+    --text: #e6e9ee;
+    --text-muted: #9aa4b1;
+    --accent: #4d9bff;
+    --accent-hover: #6cb0ff;
+    --accent-soft: rgba(77, 155, 255, 0.16);
+    --ok: #43c87f;
+    --error: #ff6b5e;
+    --error-soft: rgba(255, 107, 94, 0.14);
+    --code-bg: rgba(255, 255, 255, 0.06);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 18px rgba(0, 0, 0, 0.4);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 2.5rem 1.25rem 4rem;
+  line-height: 1.55;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Centered reading-width column so content doesn't stretch on wide screens. */
+main {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+}
+
+/* Intro/lede paragraph. */
+main > p {
+  margin: 0 0 2.5rem;
+  max-width: 70ch;
+  color: var(--text-muted);
+  font-size: 1.02rem;
+}
+
+main > p code {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 5px;
+  background: var(--surface-muted);
+  color: var(--text);
+}
+
+.group {
+  margin-bottom: 3rem;
+}
+
+.group > h2 {
+  font-size: 1.05rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.05s ease,
+    box-shadow 0.15s ease;
+}
+
+button:hover {
+  background: var(--accent-hover);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+button:disabled {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+/* Accessible loading spinner shown inside a busy button. */
+.spinner {
+  width: 0.9em;
+  height: 0.9em;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex: none;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+  .spinner {
+    animation-duration: 1.6s;
+  }
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.panel {
+  border: 1px solid var(--border);
+  /* Left-edge status accent: blue idle, green when a response arrives, red on error. */
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.2rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.panel.is-ok {
+  border-left-color: var(--ok);
+}
+
+.panel.is-error {
+  border-left-color: var(--error);
+}
+
+.panel h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+/* Small status pill in each panel header. */
+.status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  color: var(--text-muted);
+  background: var(--surface-muted);
+}
+
+.status.is-ok {
+  color: var(--ok);
+  background: rgba(31, 157, 87, 0.14);
+}
+
+.status.is-error {
+  color: var(--error);
+  background: var(--error-soft);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.trace-id {
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  font-weight: 700;
+  font-size: 0.8rem;
+  word-break: break-all;
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.trace-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--code-bg);
+  padding: 0.8rem;
+  border-radius: 8px;
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.error {
+  color: var(--error);
+  font-weight: 600;
+  margin: 0;
+}

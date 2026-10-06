@@ -1,0 +1,29 @@
+{
+  "name": "ai-accelerator",
+  "version": "0.0.0",
+  "description": "AI Accelerator — brandless starter template for the Diriyah Company AI team, built by Orion Digital Solutions: Next.js web (BFF) + FastAPI api (SQLAlchemy 2 async + Alembic), with end-to-end trace_id propagation and Azure Monitor OpenTelemetry observability.",
+  "author": {
+    "name": "Orion Digital Solutions",
+    "url": "https://www.orion360.com/"
+  },
+  "contributors": [
+    {
+      "name": "Diriyah Company AI team",
+      "url": "https://www.diriyahcompany.sa/en/"
+    }
+  ],
+  "private": true,
+  "packageManager": "pnpm@11.5.2",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n web,api -c green,magenta \"pnpm -C apps/web dev\" \"uv run --directory apps/api uvicorn app.main:app --reload --host 0.0.0.0 --port 8000\"",
+    "build": "pnpm -C apps/web build",
+    "fmt": "prettier --write . && uvx ruff@0.15.16 format apps/api && uvx ruff@0.15.16 check --fix apps/api"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.3",
+    "prettier": "3.8.3"
+  }
+}

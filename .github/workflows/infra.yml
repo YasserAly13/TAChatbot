@@ -1,0 +1,216 @@
+name: Infrastructure (Bicep)
+
+# Revision-2 decisions D3'–D5', D12 (docs/template-roadmap-bicep.md, ADR-0012):
+#   - the USE-CASE tier only (infra/main.bicep + infra/main.<env>.bicepparam): this project's
+#     container apps, database, storage, Key Vault, App Insights, Search index. The platform
+#     tier (Foundry, Container Apps Environment, Container Registry, AI Search service) is the
+#     cloud team's and is only referenced, via infra/platform/<env>.json;
+#   - on every PR that touches infra/** → bicep build + lint, then `what-if` for the environment
+#     the PR's TARGET branch maps to (development→dev, staging→staging, main→prod), posted as
+#     a PR comment;
+#   - on merge to that branch → build + push both images to the shared registry, then
+#     `az deployment group create` with the new image tags, gated by the GitHub Environment
+#     of the same name (required reviewers live there);
+#   - one service principal PER ENVIRONMENT: Contributor on that environment's resource group
+#     + AcrPush on the shared registry. Repository secrets, prefixed by environment, so the
+#     what-if job can read them without tripping the Environment's approval gate:
+#       DEV_AZURE_CLIENT_ID, DEV_AZURE_CLIENT_SECRET, DEV_AZURE_TENANT_ID, DEV_AZURE_SUBSCRIPTION_ID
+#       STAGING_AZURE_…, PROD_AZURE_…
+#     (switch to OIDC by dropping the secret and adding a federated credential — azure/login
+#     supports both with the same inputs minus `creds`).
+#   - the resource group and the registry login server are read from infra/platform/<env>.json
+#     (committed, maintained with the cloud team) — no extra repository variables.
+
+on:
+  pull_request:
+    branches: [development, staging, main]
+    paths: ['infra/**', '.github/workflows/infra.yml']
+  push:
+    branches: [development, staging, main]
+    paths: ['infra/**', 'apps/**', '.github/workflows/infra.yml']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to preview/deploy
+        type: choice
+        options: [dev, staging, prod]
+        required: true
+      deploy:
+        description: Deploy after what-if (still gated by the Environment reviewers)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: infra-${{ github.event.inputs.environment || github.base_ref || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  BICEP_VERSION: 'v0.47.16'
+
+jobs:
+  # Map the branch to an environment name once; every other job reads it.
+  resolve:
+    name: Resolve environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.map.outputs.environment }}
+      prefix: ${{ steps.map.outputs.prefix }}
+      resource_group: ${{ steps.manifest.outputs.resource_group }}
+      registry: ${{ steps.manifest.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: map
+        run: |
+          BRANCH="${{ github.event.inputs.environment || github.base_ref || github.ref_name }}"
+          case "$BRANCH" in
+            dev|development) ENV=dev ;;
+            staging)         ENV=staging ;;
+            prod|main)       ENV=prod ;;
+            *) echo "::error::No environment mapped for '$BRANCH'"; exit 1 ;;
+          esac
+          echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+          echo "prefix=$(echo "$ENV" | tr '[:lower:]' '[:upper:]')" >> "$GITHUB_OUTPUT"
+      - id: manifest
+        name: Read the platform manifest
+        run: |
+          F="infra/platform/${{ steps.map.outputs.environment }}.json"
+          [ -f "$F" ] || { echo "::error::$F is missing — the cloud team's manifest for this environment"; exit 1; }
+          echo "resource_group=$(jq -er .resourceGroup "$F")" >> "$GITHUB_OUTPUT"
+          echo "registry=$(jq -er .containerRegistry.loginServer "$F")" >> "$GITHUB_OUTPUT"
+
+  whatif:
+    name: What-if (${{ needs.resolve.outputs.environment }})
+    needs: resolve
+    runs-on: ubuntu-latest
+    env:
+      TARGET_ENV: ${{ needs.resolve.outputs.environment }}
+      RESOURCE_GROUP: ${{ needs.resolve.outputs.resource_group }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Bicep CLI
+        run: |
+          curl -sSLo bicep "https://github.com/Azure/bicep/releases/download/${{ env.BICEP_VERSION }}/bicep-linux-x64"
+          chmod +x bicep && sudo mv bicep /usr/local/bin/bicep && bicep --version
+
+      - name: Build + lint (offline)
+        run: |
+          bicep build infra/main.bicep --stdout >/dev/null
+          bicep lint infra/main.bicep
+          bicep build-params "infra/main.$TARGET_ENV.bicepparam" --stdout >/dev/null
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets[format('{0}_AZURE_CLIENT_ID', needs.resolve.outputs.prefix)] }}
+          tenant-id: ${{ secrets[format('{0}_AZURE_TENANT_ID', needs.resolve.outputs.prefix)] }}
+          subscription-id: ${{ secrets[format('{0}_AZURE_SUBSCRIPTION_ID', needs.resolve.outputs.prefix)] }}
+          creds: ${{ secrets[format('{0}_AZURE_CREDENTIALS', needs.resolve.outputs.prefix)] }}
+
+      - name: What-if
+        id: whatif
+        run: |
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters "infra/main.$TARGET_ENV.bicepparam" \
+            --no-pretty-print --result-format FullResourcePayloads \
+            2>&1 | tee whatif.txt
+
+      - name: Upload what-if
+        uses: actions/upload-artifact@v7
+        with:
+          name: whatif-${{ env.TARGET_ENV }}-${{ github.sha }}
+          path: whatif.txt
+          retention-days: 7
+
+      - name: Comment what-if on the PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const out = fs.readFileSync('whatif.txt', 'utf8');
+            const body = `### Bicep what-if — \`${{ env.TARGET_ENV }}\` (resource group \`${{ env.RESOURCE_GROUP }}\`)\n\n<details><summary>Show what-if</summary>\n\n\`\`\`\n${out.slice(0, 60000)}\n\`\`\`\n\n</details>`;
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
+
+  # Build + push both images to the SHARED registry (D12). The SP needs AcrPush on it.
+  images:
+    name: Images (${{ needs.resolve.outputs.environment }})
+    needs: [resolve, whatif]
+    if: >-
+      (github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy == 'true')
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.environment }}
+    outputs:
+      api_image: ${{ steps.tags.outputs.api_image }}
+      web_image: ${{ steps.tags.outputs.web_image }}
+    env:
+      REGISTRY: ${{ needs.resolve.outputs.registry }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets[format('{0}_AZURE_CLIENT_ID', needs.resolve.outputs.prefix)] }}
+          tenant-id: ${{ secrets[format('{0}_AZURE_TENANT_ID', needs.resolve.outputs.prefix)] }}
+          subscription-id: ${{ secrets[format('{0}_AZURE_SUBSCRIPTION_ID', needs.resolve.outputs.prefix)] }}
+          creds: ${{ secrets[format('{0}_AZURE_CREDENTIALS', needs.resolve.outputs.prefix)] }}
+      - name: Registry login
+        run: az acr login --name "${REGISTRY%%.*}"
+      - id: tags
+        name: Image tags
+        run: |
+          SLUG=$(node -p "require('./package.json').name")
+          echo "api_image=$REGISTRY/$SLUG-api:${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "web_image=$REGISTRY/$SLUG-web:${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+      - name: Build + push api
+        run: |
+          docker build --tag "${{ steps.tags.outputs.api_image }}" apps/api
+          docker push "${{ steps.tags.outputs.api_image }}"
+      - name: Build + push web
+        run: |
+          docker build --tag "${{ steps.tags.outputs.web_image }}" apps/web
+          docker push "${{ steps.tags.outputs.web_image }}"
+
+  deploy:
+    name: Deploy (${{ needs.resolve.outputs.environment }})
+    needs: [resolve, whatif, images]
+    runs-on: ubuntu-latest
+    # The approval gate: required reviewers are configured on the GitHub Environment.
+    environment: ${{ needs.resolve.outputs.environment }}
+    env:
+      TARGET_ENV: ${{ needs.resolve.outputs.environment }}
+      RESOURCE_GROUP: ${{ needs.resolve.outputs.resource_group }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets[format('{0}_AZURE_CLIENT_ID', needs.resolve.outputs.prefix)] }}
+          tenant-id: ${{ secrets[format('{0}_AZURE_TENANT_ID', needs.resolve.outputs.prefix)] }}
+          subscription-id: ${{ secrets[format('{0}_AZURE_SUBSCRIPTION_ID', needs.resolve.outputs.prefix)] }}
+          creds: ${{ secrets[format('{0}_AZURE_CREDENTIALS', needs.resolve.outputs.prefix)] }}
+
+      - name: Deploy
+        run: |
+          az deployment group create \
+            --name "${TARGET_ENV}-${GITHUB_SHA::12}" \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters "infra/main.$TARGET_ENV.bicepparam" \
+            --parameters apiImage="${{ needs.images.outputs.api_image }}" webImage="${{ needs.images.outputs.web_image }}" \
+            --output json > deployment.json
+          jq '.properties.outputs' deployment.json
+
+      # The identities' principal ids feed infra/grant-request.md (D11) — the cloud team grants
+      # roles on the shared resources; this pipeline never assigns them.
+      - name: Upload deployment outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: deployment-${{ env.TARGET_ENV }}-${{ github.sha }}
+          path: deployment.json
+          retention-days: 30

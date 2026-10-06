@@ -1,0 +1,29 @@
+{
+  "$schema": "./platform.schema.json",
+  "environment": "staging",
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "location": "swedencentral",
+  "resourceGroup": "rg-ai-stg",
+  "containerAppsEnvironment": { "name": "cae-ai-stg", "resourceGroup": "rg-ai-stg" },
+  "containerRegistry": {
+    "name": "craistg",
+    "loginServer": "craistg.azurecr.io",
+    "resourceGroup": "rg-ai-stg"
+  },
+  "aiFoundry": {
+    "name": "aif-ai-stg",
+    "resourceGroup": "rg-ai-stg",
+    "endpoint": "https://aif-ai-stg.cognitiveservices.azure.com/",
+    "deployments": {
+      "chat": "gpt-4.1",
+      "embedding": "text-embedding-3-large",
+      "embeddingDimensions": 3072
+    }
+  },
+  "aiSearch": {
+    "name": "srch-ai-stg",
+    "resourceGroup": "rg-ai-stg",
+    "endpoint": "https://srch-ai-stg.search.windows.net"
+  },
+  "tags": { "environment": "staging", "platform": "ai" }
+}

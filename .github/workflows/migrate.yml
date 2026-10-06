@@ -1,0 +1,100 @@
+name: Database migration (Alembic)
+
+# The ONLY sanctioned way to apply Alembic migrations to any environment
+# besides a named human (root CLAUDE.md → "What you cannot do"; ADR-0008).
+#   - manual trigger, environment chosen explicitly;
+#   - runs inside the GitHub Environment of that name → required reviewers
+#     approve before anything touches the database;
+#   - authenticates to Azure SQL as the environment's service principal
+#     (Authentication=ActiveDirectoryServicePrincipal) — a human must first
+#     have created it as a contained user with db_ddladmin + db_datawriter +
+#     db_datareader on the database (infra/README.md → _After the first
+#     deploy_);
+#   - prints `alembic current` before and after, and the offline SQL of the
+#     pending revisions, so the approver sees exactly what will run.
+# Repository variables per environment: <ENV>_SQL_SERVER_FQDN, <ENV>_SQL_DATABASE.
+# Repository secrets per environment: <ENV>_ARM_CLIENT_ID, <ENV>_ARM_CLIENT_SECRET.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment whose database to migrate
+        type: choice
+        options: [dev, staging, prod]
+        required: true
+      target:
+        description: Alembic target revision (head, a revision id, or -1 for one step back)
+        type: string
+        default: head
+      direction:
+        description: upgrade or downgrade
+        type: choice
+        options: [upgrade, downgrade]
+        default: upgrade
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: ${{ github.event.inputs.direction }} ${{ github.event.inputs.environment }} → ${{ github.event.inputs.target }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve environment prefix
+        id: env
+        run: echo "prefix=$(echo '${{ github.event.inputs.environment }}' | tr '[:lower:]' '[:upper:]')" >> "$GITHUB_OUTPUT"
+
+      # Microsoft ODBC Driver 18 for SQL Server (same steps as apps/api/Dockerfile).
+      - name: Install ODBC Driver 18
+        run: |
+          curl -sSL -O "https://packages.microsoft.com/config/ubuntu/$(grep VERSION_ID /etc/os-release | cut -d '"' -f 2)/packages-microsoft-prod.deb"
+          sudo dpkg -i packages-microsoft-prod.deb && rm packages-microsoft-prod.deb
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc
+
+      - uses: actions/setup-python@v6
+        with: { python-version: '3.14' }
+      - name: Install the api (locked)
+        env:
+          UV_PYTHON_DOWNLOADS: never
+        run: |
+          pip install uv==0.10.9
+          uv sync --frozen --no-dev
+
+      - name: Build DATABASE_URL (service-principal auth, never printed)
+        env:
+          SQL_SERVER_FQDN: ${{ vars[format('{0}_SQL_SERVER_FQDN', steps.env.outputs.prefix)] }}
+          SQL_DATABASE: ${{ vars[format('{0}_SQL_DATABASE', steps.env.outputs.prefix)] }}
+          SP_CLIENT_ID: ${{ secrets[format('{0}_ARM_CLIENT_ID', steps.env.outputs.prefix)] }}
+          SP_CLIENT_SECRET: ${{ secrets[format('{0}_ARM_CLIENT_SECRET', steps.env.outputs.prefix)] }}
+        run: |
+          if [ -z "$SQL_SERVER_FQDN" ] || [ -z "$SQL_DATABASE" ] || [ -z "$SP_CLIENT_ID" ] || [ -z "$SP_CLIENT_SECRET" ]; then
+            echo "::error::Missing ${{ steps.env.outputs.prefix }}_SQL_SERVER_FQDN / _SQL_DATABASE variables or _ARM_CLIENT_ID / _ARM_CLIENT_SECRET secrets."; exit 1
+          fi
+          ENC_SECRET="$(python -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$SP_CLIENT_SECRET")"
+          URL="mssql+aioodbc://${SP_CLIENT_ID}:${ENC_SECRET}@${SQL_SERVER_FQDN}:1433/${SQL_DATABASE}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no&Authentication=ActiveDirectoryServicePrincipal"
+          echo "::add-mask::$URL"
+          echo "DATABASE_URL=$URL" >> "$GITHUB_ENV"
+
+      - name: Current revision (before)
+        run: uv run alembic current
+
+      - name: Offline SQL of the pending change (for the approver)
+        run: uv run alembic ${{ github.event.inputs.direction }} ${{ github.event.inputs.target }} --sql
+
+      - name: Apply
+        run: uv run alembic ${{ github.event.inputs.direction }} ${{ github.event.inputs.target }}
+
+      - name: Current revision (after)
+        run: uv run alembic current

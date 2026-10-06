@@ -1,0 +1,80 @@
+[project]
+name = "ai-accelerator-api"
+version = "0.3.0"
+description = "AI Accelerator — Python (FastAPI) backend. Part of the brandless starter template built by Orion Digital Solutions for the Diriyah Company AI team."
+authors = [{ name = "Orion Digital Solutions" }]
+maintainers = [{ name = "Orion Digital Solutions" }]
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.136.3",
+    "uvicorn[standard]==0.49.0",
+    "azure-monitor-opentelemetry==1.8.8",
+    # NOTE: pinned to the 0.61b0 OTEL instrumentation line because
+    # azure-monitor-opentelemetry==1.8.8 hard-pins all instrumentation
+    # packages to ==0.61b0 (and opentelemetry-sdk==1.40). The spec's
+    # requested 0.63b1 line is incompatible with that pin; per the spec's
+    # conflict instruction we align to the version azure-monitor resolves.
+    "opentelemetry-instrumentation-fastapi==0.61b0",
+    "opentelemetry-instrumentation-httpx==0.61b0",
+    # opentelemetry-api is pulled transitively by the SDK (==1.40 -> api==1.40.0);
+    # we let uv resolve it rather than force the spec's 1.9.1 (which conflicts).
+    "structlog==26.1.0",
+    "httpx==0.28.1",
+    "opentelemetry-instrumentation-system-metrics==0.61b0",
+    "azure-identity==1.25.3",
+    "python-dotenv==1.2.2",
+    "sqlalchemy[asyncio]==2.0.54",
+    # Azure SQL Database via the `mssql+aioodbc` dialect (ADR-0008): aioodbc is
+    # pure Python over pyodbc (compiled — the wheel-only Docker build needs
+    # pyodbc to publish CPython 3.14 wheels; verified for 5.3.0) over Microsoft
+    # ODBC Driver 18 for SQL Server (installed in the runtime image).
+    "aioodbc==0.5.0",
+    "pyodbc==5.3.0",
+    "alembic==1.20.0",
+    # DB dependency spans (ADR-0008) — the distro's 0.61b0 line, same as the
+    # other instrumentation packages above.
+    "opentelemetry-instrumentation-sqlalchemy==0.61b0",
+    "langchain-core==1.6.5",
+    "langgraph==1.2.12",
+    "langchain-openai==1.6.6",
+    "azure-search-documents==12.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff==0.15.16",
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+# The migrations dir is named `alembic/`, which ruff would otherwise auto-detect as a
+# first-party package and mis-sort `from alembic import ...` into the `app` block.
+known-third-party = ["alembic"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["tests/*"]
+# Emit repo-relative file paths (e.g. app/config.py) with no machine-specific
+# <source> root, so coverage.xml is portable across CI runners and any external
+# coverage consumer can map entries back to source files.
+relative_files = true

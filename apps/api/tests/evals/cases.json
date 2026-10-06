@@ -1,0 +1,20 @@
+[
+  {
+    "id": "grounded-answer-cites-context",
+    "question": "Which port does the api listen on?",
+    "context": [
+      { "id": "c1", "content": "The api service listens on port 8000.", "source": "docs/api.md", "score": 1.0 }
+    ],
+    "scripted_answer": "The api listens on port 8000 [1].",
+    "expect_contains": ["8000", "[1]"],
+    "expect_sources": ["docs/api.md"]
+  },
+  {
+    "id": "no-context-admits-unknown",
+    "question": "What is the CEO's phone number?",
+    "context": [],
+    "scripted_answer": "I do not know — the context does not contain that information.",
+    "expect_contains": ["do not know"],
+    "expect_sources": []
+  }
+]

@@ -1,0 +1,12 @@
+# CODEOWNERS - the required-approver list, enforced natively by GitHub.
+#
+# Every PR into a branch whose protection enables "require code owner review"
+# (development, staging, main) must have an approving review from one of the
+# people below. All three are code owners on every branch, so any one of them
+# can approve a PR into any branch. The file is identical on every branch, so
+# there is no drift to manage across promotions.
+#
+# Who can MERGE is controlled separately by branch-protection push restrictions
+# (staging: all three; main: yelserafy + Salma-Eissa). GitHub blocks approving
+# your own PR, so the author still needs one of the others to approve.
+* @yfayed @yelserafy @Salma-Eissa

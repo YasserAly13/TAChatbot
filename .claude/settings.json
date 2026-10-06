@@ -1,0 +1,93 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(bash scripts/doctor.sh:*)",
+      "Bash(pnpm -C apps/web test:*)",
+      "Bash(pnpm -C apps/web typecheck:*)",
+      "Bash(pnpm -C apps/web api-types:*)",
+      "Bash(pnpm -C apps/web exec tsc --noEmit:*)",
+      "Bash(uv run --directory apps/api pytest:*)",
+      "Bash(uv run --directory apps/api ruff:*)",
+      "Bash(uv run --directory apps/api python -m app.openapi_export:*)",
+      "Bash(uv run --directory apps/api alembic heads:*)",
+      "Bash(uv run --directory apps/api alembic current:*)",
+      "Bash(uv run --directory apps/api alembic check:*)",
+      "Bash(prettier --check:*)",
+      "Bash(bicep build:*)",
+      "Bash(bicep build-params:*)",
+      "Bash(bicep lint:*)",
+      "Bash(bicep format:*)",
+      "WebFetch(domain:nextjs.org)",
+      "WebFetch(domain:fastapi.tiangolo.com)",
+      "WebFetch(domain:docs.sqlalchemy.org)",
+      "WebFetch(domain:alembic.sqlalchemy.org)",
+      "WebFetch(domain:docs.astral.sh)",
+      "WebFetch(domain:learn.microsoft.com)",
+      "WebFetch(domain:getpino.io)",
+      "WebFetch(domain:www.structlog.org)",
+      "WebFetch(domain:python.langchain.com)",
+      "WebFetch(domain:reference.langchain.com)",
+      "WebFetch(domain:langchain-ai.github.io)",
+      "WebFetch(domain:vitest.dev)",
+      "WebFetch(domain:testing-library.com)",
+      "WebFetch(domain:tailwindcss.com)",
+      "WebFetch(domain:openapi-ts.dev)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "deny": [
+      "Bash(kubectl:*)",
+      "Bash(git push:*)",
+      "Bash(az group delete:*)",
+      "Bash(az resource delete:*)",
+      "Bash(az deployment group delete:*)",
+      "Bash(az deployment sub:*)",
+      "Bash(az deployment mg:*)",
+      "Bash(az deployment tenant:*)",
+      "Bash(az containerapp delete:*)",
+      "Bash(az containerapp env delete:*)",
+      "Bash(az sql server delete:*)",
+      "Bash(az sql db delete:*)",
+      "Bash(az storage account delete:*)",
+      "Bash(az storage container delete:*)",
+      "Bash(az keyvault delete:*)",
+      "Bash(az keyvault purge:*)",
+      "Bash(az keyvault secret delete:*)",
+      "Bash(az keyvault secret purge:*)",
+      "Bash(az acr delete:*)",
+      "Bash(az acr repository delete:*)",
+      "Bash(az cognitiveservices account delete:*)",
+      "Bash(az cognitiveservices account purge:*)",
+      "Bash(az search service delete:*)",
+      "Bash(az role assignment create:*)",
+      "Bash(az role assignment delete:*)",
+      "Bash(az ad:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/format-changed.mjs"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/remind-tests.mjs"
+          }
+        ]
+      }
+    ]
+  }
+}

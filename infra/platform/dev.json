@@ -1,0 +1,29 @@
+{
+  "$schema": "./platform.schema.json",
+  "environment": "dev",
+  "subscriptionId": "00000000-0000-0000-0000-000000000000",
+  "location": "swedencentral",
+  "resourceGroup": "rg-ai-dev",
+  "containerAppsEnvironment": { "name": "cae-ai-dev", "resourceGroup": "rg-ai-dev" },
+  "containerRegistry": {
+    "name": "craidev",
+    "loginServer": "craidev.azurecr.io",
+    "resourceGroup": "rg-ai-dev"
+  },
+  "aiFoundry": {
+    "name": "aif-ai-dev",
+    "resourceGroup": "rg-ai-dev",
+    "endpoint": "https://aif-ai-dev.cognitiveservices.azure.com/",
+    "deployments": {
+      "chat": "gpt-4.1",
+      "embedding": "text-embedding-3-large",
+      "embeddingDimensions": 3072
+    }
+  },
+  "aiSearch": {
+    "name": "srch-ai-dev",
+    "resourceGroup": "rg-ai-dev",
+    "endpoint": "https://srch-ai-dev.search.windows.net"
+  },
+  "tags": { "environment": "dev", "platform": "ai" }
+}
