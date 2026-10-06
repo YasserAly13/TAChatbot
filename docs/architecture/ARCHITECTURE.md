@@ -252,14 +252,19 @@ Detail and user stories: [`TAChatbot/architecture.md` → B2](TAChatbot/architec
 
 The template's `retrieve → answer` graph over AI Search index `team-assistant-docs` (`top_k = 5`)
 on the `gpt-4.1` / `text-embedding-3-large` deployments (B1); memory = the last 10 messages;
-background, single-flight ingestion of `docs/**/*.md`. Detail, limits and failure modes:
+background, single-flight ingestion of `docs/**/*.md` (api only). Evaluation: extend
+`tests/evals/cases.json` for every prompt change (rule 70). Guardrails: Foundry default content
+filters and the "context is data" system prompt. Detail, limits and failure modes:
 [`TAChatbot/architecture.md` → B3](TAChatbot/architecture.md#b3-ai-components).
 
 ### B4. Data stores
 
 The project's Azure SQL database (B1) with tables `conversations` and `messages` — read/write
 from `apps/api`; messages kept indefinitely; no owner per conversation until auth lands. The
-vector store is the AI Search index above. Column definitions and the `/v1` API surface:
+vector store is the AI Search index above. PII / retention: message content is free text typed
+by internal users and may contain personal data; kept indefinitely (no purge job); never logged
+(rules 60/70). Column definitions ([`docs/design/db-design.md`](../design/db-design.md)) and the
+`/v1` API surface:
 [`TAChatbot/architecture.md` → B4 / B4a](TAChatbot/architecture.md#b4-data-stores-azure-sql-owned-by-appsapi).
 
 ### B5. Integrations
@@ -286,11 +291,11 @@ _Still to write: authorization model, data classification, threat models
 
 ### B8. Decisions and open questions
 
-Six decisions are recorded in
-[`TAChatbot/architecture.md` → B8](TAChatbot/architecture.md#b8-decisions-and-open-questions)
-(corpus delivery, ingest behaviour, conversation titles, history length, retention, no
-rename/delete). No project ADRs yet; shared conversations without an owner (B7) is to be
-recorded as a Proposed ADR.
+Twelve decisions are recorded in
+[`TAChatbot/architecture.md` → B8](TAChatbot/architecture.md#b8-decisions-and-open-questions);
+no open questions. ADRs: [0013](../adr/0013-local-only-pre-provisioned-dev.md) local-only, no
+infrastructure · [0014](../adr/0014-shared-conversations-until-auth.md) shared conversations
+until auth (both Accepted 2026-10-06).
 
 ### B9. Change log of this document
 
@@ -298,3 +303,4 @@ recorded as a Proposed ADR.
 | ---------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 2026-10-06 | Yasser Aly | `/init-project`: renamed to Team Assistant; B1 (summary, dev-only pre-provisioned resources, team) and B7 (no auth, Okta later) filled                             |
 | 2026-10-06 | Yasser Aly | B2–B6 and B8 summarised with links to the complementary `TAChatbot/architecture.md`; `/chat` wireframe added to `docs/design/wireframes/`; code owner @YasserAly13 |
+| 2026-10-06 | Yasser Aly | `/architecture-review` answers applied: B3 evaluation + guardrails, B4 PII/retention, B8 links ADR-0013/0014 (Accepted)                                            |

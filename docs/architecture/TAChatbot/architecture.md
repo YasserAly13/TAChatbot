@@ -24,26 +24,30 @@ indexed in Azure AI Search. No login (internal only; Okta later).
 
 - The template's `retrieve → answer` graph with `AzureSearchRetriever` on index `team-assistant-docs`;
   conversation memory = the last 10 messages of the conversation passed as history.
-- Streaming frames `sources → token* → done`; `sources` carries `[{title, path}]` — ingestion adds a
-  `title` field (first `# ` heading, else the file name).
+- Streaming frames `sources → token* → done`; `sources` carries `[{title, path}]` instead of the
+  template's list of paths — ingestion adds a `title` field to the existing `team-assistant-docs`
+  index (first `# ` heading, else the file name) and re-indexes.
 - Ingestion endpoint `POST /v1/admin/ingest` → `202`, runs in the background, single-flight (`409`
-  while one runs); corpus baked into the api image at `/app/corpus` for deployed runs (ADR
-  proposed by the review); locally the repo's `docs/`.
+  while one runs). **api only — not mirrored in the BFF**, so no browser can trigger it. Corpus:
+  the repo's `docs/`, located by the new setting `INGEST_CORPUS_PATH` (no deployment, ADR-0013).
+  The CLI `uv run python -m app.ai.ingest <path>` keeps working.
 - Telemetry per the template: no message content in logs, spans, metrics or events.
-- Limits: question ≤ 4,000 characters; `top_k = 5`; timeout 60 s; model/search failure →
-  `503 ai_unavailable` (the user message is kept); a disconnect before `done` stores no assistant
-  message.
+- Limits: question ≤ 4,000 characters (over → `422 validation_error`); `top_k = 5`; timeout 60 s.
+- Failures: model/search failure **before** the stream starts → `503 ai_unavailable` (the user
+  message is kept); **after** it starts → an `event: error` frame `{error_kind}` ends the stream and
+  the UI shows the error with the response's `x-trace-id`. A disconnect before `done` stores no
+  assistant message.
 
 ## B4. Data stores (Azure SQL, owned by `apps/api`)
 
 Table `conversations`:
 
-| Column       | Type               | Rules                                                                    |
-| ------------ | ------------------ | ------------------------------------------------------------------------ |
-| `id`         | `uniqueidentifier` | PK                                                                       |
-| `title`      | `nvarchar(200)`    | not null; default "New conversation", else the first question cut to 200 |
-| `created_at` | `datetime2(3)`     | not null                                                                 |
-| `updated_at` | `datetime2(3)`     | not null                                                                 |
+| Column       | Type               | Rules                                                                                                        |
+| ------------ | ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `id`         | `uniqueidentifier` | PK                                                                                                           |
+| `title`      | `nvarchar(200)`    | not null; given on create, else "New conversation" until the first ask renames it to the question cut to 200 |
+| `created_at` | `datetime2(3)`     | not null                                                                                                     |
+| `updated_at` | `datetime2(3)`     | not null                                                                                                     |
 
 Table `messages`:
 
@@ -57,20 +61,25 @@ Table `messages`:
 | `token_count`     | `int`              | nullable                                                           |
 | `created_at`      | `datetime2(3)`     | not null                                                           |
 
-Retention: indefinite in this release. Conversations are shared (no owner) until auth lands.
+Retention: indefinite in this release. Conversations are shared (no owner) until auth lands
+(ADR-0014). PII: message content is free text typed by internal users and may contain personal
+data; never logged. Migrations are applied by Yasser Aly from a developer machine against dev
+(ADR-0013) — never by an agent.
 
 ## B4a. API surface (`/v1`)
 
-| Method | Path                         | Request                  | Response                                                                        | Errors                                               |
-| ------ | ---------------------------- | ------------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| POST   | `/v1/conversations`          | `{ "title"?: string }`   | `201` `{ id, title, created_at, updated_at }`                                   | `422 validation_error`                               |
-| GET    | `/v1/conversations`          | `?limit=50` (1–100)      | `200` `{ items: [{ id, title, updated_at }], count }` newest first              | `422 validation_error`                               |
-| GET    | `/v1/conversations/{id}`     | —                        | `200` conversation + `messages: [{ id, role, content, citations, created_at }]` | `404 not_found`                                      |
-| POST   | `/v1/conversations/{id}/ask` | `{ "question": string }` | `200` `{ message_id, answer, citations }` (JSON) · `…/ask/stream` → SSE frames  | `404`, `413 payload_too_large`, `503 ai_unavailable` |
-| POST   | `/v1/admin/ingest`           | —                        | `202 { "status": "started" }`                                                   | `409 ingest_running`                                 |
+| Method | Path                         | Request                  | Response                                                                        | Errors                                              |
+| ------ | ---------------------------- | ------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------- |
+| POST   | `/v1/conversations`          | `{ "title"?: string }`   | `201` `{ id, title, created_at, updated_at }`                                   | `422 validation_error`                              |
+| GET    | `/v1/conversations`          | `?limit=50` (1–100)      | `200` `{ items: [{ id, title, updated_at }], count }` newest first              | `422 validation_error`                              |
+| GET    | `/v1/conversations/{id}`     | —                        | `200` conversation + `messages: [{ id, role, content, citations, created_at }]` | `404 not_found`                                     |
+| POST   | `/v1/conversations/{id}/ask` | `{ "question": string }` | `200` `{ message_id, answer, citations }` (JSON) · `…/ask/stream` → SSE frames  | `404`, `422 validation_error`, `503 ai_unavailable` |
+| POST   | `/v1/admin/ingest`           | —                        | `202 { "status": "started" }`                                                   | `409 ingest_running`                                |
 
 Error bodies are the template's `{ "error": code, "trace_id": id }`. The BFF mirrors every route
-under `/api/v1/…` with `MOCK_UPSTREAM` fixtures for each.
+under `/api/v1/…` with `MOCK_UPSTREAM` fixtures for each — **except `/v1/admin/ingest`** (api
+only). These routes **replace** the template's `/api/v1/assistant/ask` and `/ask/stream` BFF routes,
+which are removed.
 
 ## B5. Integrations
 
@@ -84,19 +93,27 @@ in `ARCHITECTURE.md` → B1). No infrastructure is deployed by this project in a
 ## B7. Security and auth posture
 
 Internal-only, no user auth; **conversations are shared** (every user can read every conversation)
-until Okta lands — recorded as a Proposed ADR. Prompt injection through the corpus is mitigated by
+until Okta lands — [ADR-0014](../../adr/0014-shared-conversations-until-auth.md). Prompt injection through the corpus is mitigated by
 the template's "context is data" prompt rule; the ingest trigger takes no input and is single-flight.
 
 ## B8. Decisions and open questions
 
-| #   | Decision                                                                  |
-| --- | ------------------------------------------------------------------------- |
-| 1   | Corpus delivery: repo `docs/` locally; baked into the image when deployed |
-| 2   | Ingest: `202`, background, single-flight, `409` when busy                 |
-| 3   | Title optional on create; else the first question cut to 200 characters   |
-| 4   | History sent to the model: last 10 messages                               |
-| 5   | Messages kept indefinitely; no purge job                                  |
-| 6   | Rename and delete: out of scope                                           |
+| #   | Decision                                                                                                                                                                           |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Corpus delivery: the repo's `docs/` via `INGEST_CORPUS_PATH` (no deployment — ADR-0013)                                                                                            |
+| 2   | Ingest: `202`, background, single-flight, `409` when busy; api only, not in the BFF                                                                                                |
+| 3   | Title optional on create; else "New conversation", renamed to the first question cut to 200                                                                                        |
+| 4   | History sent to the model: last 10 messages                                                                                                                                        |
+| 5   | Messages kept indefinitely; no purge job                                                                                                                                           |
+| 6   | Rename and delete: out of scope                                                                                                                                                    |
+| 7   | `sources` frame becomes `[{title, path}]`; `title` field added to the existing index                                                                                               |
+| 8   | Over-long question → `422 validation_error`                                                                                                                                        |
+| 9   | `503 ai_unavailable` before the stream; `error` frame after it starts                                                                                                              |
+| 10  | The template's `/api/v1/assistant/*` routes are replaced and removed                                                                                                               |
+| 11  | Migrations applied by Yasser Aly from a developer machine against dev (ADR-0013)                                                                                                   |
+| 12  | Local-only, no infrastructure — [ADR-0013](../../adr/0013-local-only-pre-provisioned-dev.md); shared conversations — [ADR-0014](../../adr/0014-shared-conversations-until-auth.md) |
+
+Answered in the architecture review of 2026-10-06; no open questions.
 
 ## Flow
 
