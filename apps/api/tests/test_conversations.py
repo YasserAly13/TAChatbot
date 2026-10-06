@@ -23,57 +23,10 @@ from app.main import app
 from app.models.conversation import DEFAULT_TITLE, ROLES, Conversation, Message
 from app.repositories import conversations as repo
 from app.routers.conversations import MessageRole
+from tests.fakes import INBOUND_TRACE, FakeSession, make_conversation
 
-INBOUND_TRACE = "0eb01" + "a" * 27
 EMOJI = "\U0001f600"  # one character, two UTF-16 units
-
-
-class FakeResult:
-    def __init__(self, rows: list[Any]) -> None:
-        self._rows = rows
-
-    def scalars(self) -> FakeResult:
-        return self
-
-    def all(self) -> list[Any]:
-        return list(self._rows)
-
-    def first(self) -> Any:
-        return self._rows[0] if self._rows else None
-
-
-class FakeSession:
-    """Just enough of ``AsyncSession`` for the repository: add/flush/commit/execute/get."""
-
-    def __init__(self, rows: list[Any] | None = None, *, fail_commit: bool = False) -> None:
-        self.rows = rows or []
-        self.added: list[Any] = []
-        self.statements: list[Any] = []
-        self.flushes = 0
-        self.commits = 0
-        self.fail_commit = fail_commit
-
-    def add(self, obj: Any) -> None:
-        self.added.append(obj)
-
-    async def flush(self) -> None:
-        self.flushes += 1
-
-    async def commit(self) -> None:
-        if self.fail_commit:
-            raise RuntimeError("database unavailable")
-        self.commits += 1
-
-    async def execute(self, statement: Any) -> FakeResult:
-        self.statements.append(statement)
-        return FakeResult(self.rows)
-
-    async def get(self, model: Any, key: Any) -> Any:
-        return next((r for r in self.rows if isinstance(r, model) and r.id == key), None)
-
-
-def _conversation(title: str, updated: datetime) -> Conversation:
-    return Conversation(id=uuid4(), title=title, created_at=updated, updated_at=updated)
+_conversation = make_conversation
 
 
 @pytest.fixture()

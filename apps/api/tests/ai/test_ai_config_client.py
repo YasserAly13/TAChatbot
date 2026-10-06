@@ -26,6 +26,7 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch):
         "AI_REQUEST_TIMEOUT_SECONDS",
         "AI_MAX_RETRIES",
         "AI_ALLOW_TEXT_TO_SQL",
+        "AI_MAX_OUTPUT_TOKENS",
     ):
         monkeypatch.delenv(name, raising=False)
     client_mod._reset_for_tests()
@@ -42,6 +43,17 @@ class TestSettings:
         assert s.max_retries == 2
         assert s.embedding_dimensions == 1536
         assert s.allow_text_to_sql is False
+        assert s.max_output_tokens == 1024  # answers are capped unless told otherwise
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [("2048", 2048), ("0", None), ("lots", 1024), ("-5", 1024), ("", 1024)],
+    )
+    def test_max_output_tokens(
+        self, monkeypatch: pytest.MonkeyPatch, raw: str, expected: int | None
+    ) -> None:
+        monkeypatch.setenv("AI_MAX_OUTPUT_TOKENS", raw)
+        assert get_ai_settings().max_output_tokens == expected
 
     def test_require_raises_clear_errors(self) -> None:
         s = get_ai_settings()
@@ -100,6 +112,20 @@ class TestClientFactory:
         assert model.max_retries == 2
         assert model.azure_ad_token_provider is None
         assert called == []  # no identity credential in api_key mode
+
+    def test_chat_model_caps_output_tokens(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("AZURE_AI_ENDPOINT", ENDPOINT)
+        monkeypatch.setenv("AZURE_AI_DEPLOYMENT", "gpt-4.1")
+        monkeypatch.setenv("AZURE_AI_AUTH_MODE", "api_key")
+        monkeypatch.setenv("AZURE_AI_API_KEY", "dev-key")
+
+        capped = client_mod.build_chat_model()
+        assert capped.max_tokens == 1024
+        # what goes on the wire to Azure OpenAI
+        assert capped._default_params["max_completion_tokens"] == 1024
+
+        monkeypatch.setenv("AI_MAX_OUTPUT_TOKENS", "0")
+        assert client_mod.build_chat_model().max_tokens is None
 
     def test_api_key_mode_requires_a_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("AZURE_AI_ENDPOINT", ENDPOINT)
