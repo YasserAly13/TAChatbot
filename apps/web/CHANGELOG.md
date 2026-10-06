@@ -7,6 +7,12 @@ The two services version independently.
 
 ## [Unreleased]
 
+### Changed
+
+- Test tooling only: Vitest `testTimeout` raised from the 5 s default to 15 s
+  (`vitest.config.ts`) — the jsdom `MessageInput` typing test timed out on a busy machine. No
+  change to the app.
+
 ## [0.1.0] — 2026-09-28
 
 ### Added
