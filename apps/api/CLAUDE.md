@@ -99,10 +99,19 @@ this as a starting map; read the actual files when you need detail.
 - **Session per request** via `Depends(get_session)`; tests override it with
   `app.dependency_overrides[get_session]` and never need a database. External read-only data:
   `Depends(get_external_session)` (`EXTERNAL_DATABASE_URL`; unset ⇒ `ExternalDatabaseNotConfigured`).
-- **Alembic is wired, idle.** `alembic/versions/` is empty; the URL comes from `DATABASE_URL`
-  through `app.config` (never `alembic.ini`). Autogenerate/`check` target the **dev** database;
-  **applying is `.github/workflows/migrate.yml` (Environment-gated) or a named human** — agents
-  only use offline/`heads`/`check` modes (root `CLAUDE.md` → _What you cannot do_).
+- **Models:** `app/models/conversation.py` — `Conversation` + `Message` (`conversations`,
+  `messages`; `docs/design/db-design.md`). Text columns that need `NVARCHAR(max)` use
+  `Unicode()` without a length — `UnicodeText` renders `NTEXT` offline, which `ISJSON()` rejects.
+  **Deviation from rule 25:** timestamps are `DATETIME2(3)` + `SYSUTCDATETIME()` (the design's
+  `datetime2(3)`), not `DateTime(timezone=True)` + `func.now()` — values are UTC but come back
+  naive, so responses attach UTC. Relationships are `lazy="raise"`: load messages with
+  `selectinload`, never implicitly on an `AsyncSession`.
+- **Alembic:** one revision, `7c1d4e2a9b30` (create conversations and messages); the URL comes
+  from `DATABASE_URL` through `app.config` (never `alembic.ini`). Autogenerate/`check` target the
+  **dev** database; **applying is a named human from a developer machine (ADR-0013 — no
+  `migrate.yml` in this project)** — agents only use offline/`heads`/`check` modes (root
+  `CLAUDE.md` → _What you cannot do_). `tests/test_models.py` fails if a model and the migration
+  disagree.
 - **DB spans** = `opentelemetry-instrumentation-sqlalchemy` (0.61b0, distro line) registered in
   `init_observability` **without an engine**, so it wraps `create_async_engine` for both lazy
   engines — which is why `engine.py`/`external.py` resolve it via `sa_asyncio.create_async_engine`

@@ -95,7 +95,10 @@ And a fourth, for anything touching the database layer: **no test connects to a 
 monkeypatch `pyodbc.connect` to raise and prove the engines, the session dependencies, and the
 lifespan never call it;
 [`test_alembic.py`](../../apps/api/tests/test_alembic.py) proves `alembic.ini` holds no URL,
-`alembic/versions/` holds no revisions, and offline `upgrade --sql` runs without a database.
+the history is linear with a real `downgrade()`, and offline `upgrade`/`downgrade --sql` render
+the conversations tables without a database;
+[`test_models.py`](../../apps/api/tests/test_models.py) compiles the models for SQL Server and
+fails if the migration's `CREATE TABLE` differs from the model.
 
 ---
 
