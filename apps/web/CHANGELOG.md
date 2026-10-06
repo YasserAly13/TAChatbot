@@ -7,6 +7,12 @@ The two services version independently.
 
 ## [Unreleased]
 
+### Security
+
+- `pnpm dev` binds `next dev` to **`127.0.0.1`** (`-H 127.0.0.1`) — Next.js defaults to `0.0.0.0`,
+  so the dev server (and, through the BFF, the api) was reachable from the local network
+  (threat model `conversations-and-ingest`, S2). Production images are unchanged.
+
 ### Changed
 
 - Test tooling only: Vitest `testTimeout` raised from the 5 s default to 15 s

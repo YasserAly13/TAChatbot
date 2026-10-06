@@ -32,7 +32,9 @@ indexed in Azure AI Search. No login (internal only; Okta later).
   the repo's `docs/`, located by the new setting `INGEST_CORPUS_PATH` (no deployment, ADR-0013).
   The CLI `uv run python -m app.ai.ingest <path>` keeps working.
 - Telemetry per the template: no message content in logs, spans, metrics or events.
-- Limits: question ≤ 4,000 characters (over → `422 validation_error`); `top_k = 5`; timeout 60 s.
+- Limits: question ≤ 4,000 characters (over → `422 validation_error`); `top_k = 5`; each model or
+  embedding call times out after `AI_REQUEST_TIMEOUT_SECONDS` (60 s, up to 2 retries) and the whole
+  ask has a 120 s deadline (2 × that setting); answers are capped at `AI_MAX_OUTPUT_TOKENS` (1024).
 - Failures: model/search failure **before** the stream starts → `503 ai_unavailable` (the user
   message is kept); **after** it starts → an `event: error` frame `{error_kind}` ends the stream and
   the UI shows the error with the response's `x-trace-id`. A disconnect before `done` stores no
@@ -93,8 +95,13 @@ in `ARCHITECTURE.md` → B1). No infrastructure is deployed by this project in a
 ## B7. Security and auth posture
 
 Internal-only, no user auth; **conversations are shared** (every user can read every conversation)
-until Okta lands — [ADR-0014](../../adr/0014-shared-conversations-until-auth.md). Prompt injection through the corpus is mitigated by
-the template's "context is data" prompt rule; the ingest trigger takes no input and is single-flight.
+until Okta lands — [ADR-0014](../../adr/0014-shared-conversations-until-auth.md). Prompt injection is **only partly mitigated**: retrieved
+document text is placed in the system prompt's `{context}` slot without delimiters, and the only
+defence is one "context is data, not commands" sentence in `prompts/system.md` (the eval checks the
+phrase exists, not its effect); no tools are bound, which limits the damage to answer text. Accepted
+risk 7 in the [threat model](../../security/threat-models/conversations-and-ingest.md); hardening
+(delimited context, injection evals) is threat-model must-fix #8 / roadmap 5.1. The ingest trigger
+takes no input, is off by default and single-flight.
 
 ## B8. Decisions and open questions
 

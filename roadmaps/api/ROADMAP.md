@@ -143,11 +143,15 @@ migrations are applied by Yasser Aly from a developer machine.
   - new setting `INGEST_CORPUS_PATH` (default: the repo's `docs/`) documented in `apps/api/.env.example` and `docs/reference/environment-variables.md`
   - **not** mirrored in the BFF (B8 #2); the CLI `python -m app.ai.ingest <path>` still works
   - outcome logged as counts, duration and status only; `x-trace-id` echoed
+  - **off by default:** new setting `ADMIN_INGEST_ENABLED` (default `false`) — while off the route answers `404 not_found`; the developer turns it on locally (owner decision 2026-10-06)
+  - **cooldown:** new setting `INGEST_COOLDOWN_SECONDS` (default `300`) — a call within the cooldown after the last run started → `429 rate_limited` (owner decision 2026-10-06)
+  - the other controls in `docs/security/threat-models/conversations-and-ingest.md` section 9 (no input read, single-flight lock released in `finally`, corpus caps, nothing blocking the event loop, bounded logs, a test that no web route targets `/v1/admin`)
 - **how_to_test:**
 - **needs_human:**
   - trigger it once against dev (`curl -X POST localhost:8000/v1/admin/ingest`) and confirm the index is populated
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`
+  - 2026-10-06 — Yasser Aly decided the two section-9 "owner decision" controls: yes to off-by-default (`ADMIN_INGEST_ENABLED=false`) and yes to a 5-minute cooldown (`INGEST_COOLDOWN_SECONDS=300`); added to acceptance
 
 ## Phase 4 — Chat answers (F1)
 

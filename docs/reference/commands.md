@@ -35,15 +35,15 @@ or `just <target>`.
 
 ### `apps/web` (`package.json` scripts)
 
-| Script       | Runs                    | Notes                                                                                                                                                                                                                   |
-| ------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dev`        | `next dev -p 3000`      | Local dev server on port 3000.                                                                                                                                                                                          |
-| `build`      | `next build`            | Production build (`output: 'standalone'` per `next.config.ts`).                                                                                                                                                         |
-| `start`      | `next start -p 3000`    | Serves the production build — run `build` first.                                                                                                                                                                        |
-| `test`       | `vitest run`            | Runs `src/**/*.test.ts` (lib + BFF route handler tests) once.                                                                                                                                                           |
-| `test:cov`   | `vitest run --coverage` | Coverage variant; emits `coverage/lcov.info`. Presentational files (`page.tsx`, `layout.tsx`) stay out of the coverage denominator (`coverage.include` is `src/**/*.ts`) by design — see `.claude/rules/40-testing.md`. |
-| `test:watch` | `vitest`                | Watch-mode unit tests.                                                                                                                                                                                                  |
-| `test:e2e`   | `playwright test`       | **Manual/local only, not in CI.** Requires the full stack up (`make up` or `make dev`) — targets `WEB_BASE_URL` (default `http://localhost:3000`, see `playwright.config.ts`).                                          |
+| Script       | Runs                            | Notes                                                                                                                                                                                                                   |
+| ------------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dev`        | `next dev -p 3000 -H 127.0.0.1` | Local dev server on port 3000, loopback only (Next.js defaults to `0.0.0.0`).                                                                                                                                           |
+| `build`      | `next build`                    | Production build (`output: 'standalone'` per `next.config.ts`).                                                                                                                                                         |
+| `start`      | `next start -p 3000`            | Serves the production build — run `build` first.                                                                                                                                                                        |
+| `test`       | `vitest run`                    | Runs `src/**/*.test.ts` (lib + BFF route handler tests) once.                                                                                                                                                           |
+| `test:cov`   | `vitest run --coverage`         | Coverage variant; emits `coverage/lcov.info`. Presentational files (`page.tsx`, `layout.tsx`) stay out of the coverage denominator (`coverage.include` is `src/**/*.ts`) by design — see `.claude/rules/40-testing.md`. |
+| `test:watch` | `vitest`                        | Watch-mode unit tests.                                                                                                                                                                                                  |
+| `test:e2e`   | `playwright test`               | **Manual/local only, not in CI.** Requires the full stack up (`make up` or `make dev`) — targets `WEB_BASE_URL` (default `http://localhost:3000`, see `playwright.config.ts`).                                          |
 
 Run any of these with `pnpm -C apps/web <script>`.
 
