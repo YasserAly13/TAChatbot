@@ -1,12 +1,11 @@
-"""Alembic is wired but idle (ADR-0004 / ADR-0008): no hard-coded URL, no revisions,
-and the async ``env.py`` runs in OFFLINE mode with no database and no connection
-— rendering for the SQL Server dialect.
+"""Alembic (ADR-0008 / ADR-0013): no hard-coded URL, one linear history starting with the
+conversations revision (roadmap api 1.1), and the async ``env.py`` renders upgrade AND
+downgrade in OFFLINE mode with no database and no connection — for the SQL Server dialect.
 """
 
 from __future__ import annotations
 
 import io
-import logging
 from pathlib import Path
 from typing import Any
 
@@ -31,22 +30,6 @@ def _config(output: io.StringIO | None = None) -> Config:
     return Config(str(INI), output_buffer=output, stdout=io.StringIO())
 
 
-@pytest.fixture()
-def _restore_logging():
-    """env.py applies alembic.ini's CLI logging via fileConfig; undo it afterwards
-    so the service's stdlib logging setup is untouched for the rest of the run."""
-    root = logging.getLogger()
-    saved = (root.level, list(root.handlers))
-    yield
-    root.setLevel(saved[0])
-    root.handlers[:] = saved[1]
-    for name in ("alembic", "sqlalchemy.engine"):
-        logger = logging.getLogger(name)
-        logger.handlers[:] = []
-        logger.setLevel(logging.NOTSET)
-        logger.propagate = True
-
-
 def test_ini_has_no_hardcoded_database_url() -> None:
     assert "sqlalchemy.url" not in INI.read_text(encoding="utf-8")
 
@@ -57,23 +40,39 @@ def test_script_location_resolves_to_the_alembic_dir() -> None:
     assert (SERVICE_ROOT / "alembic" / "script.py.mako").is_file()
 
 
-def test_versions_dir_exists_and_holds_no_revisions() -> None:
+FIRST_REVISION = "7c1d4e2a9b30"
+
+
+def test_history_is_linear_and_starts_with_the_conversations_revision() -> None:
+    script = ScriptDirectory.from_config(_config())
     assert VERSIONS.is_dir()
-    assert [p.name for p in VERSIONS.iterdir() if p.suffix == ".py"] == []
-    assert ScriptDirectory.from_config(_config()).get_heads() == []
+    assert script.get_heads() == [FIRST_REVISION]
+    assert script.get_revision(FIRST_REVISION).down_revision is None
+
+
+def test_every_revision_has_a_real_downgrade() -> None:
+    # A structural mirror: every table/index created in upgrade() is dropped in downgrade().
+    for path in VERSIONS.glob("*.py"):
+        source = path.read_text(encoding="utf-8")
+        upgrade, downgrade = source.split("def downgrade() -> None:", 1)
+        for create, drop in (("create_table(", "drop_table("), ("create_index(", "drop_index(")):
+            assert upgrade.count(f"op.{create}") == downgrade.count(f"op.{drop}"), (
+                f"{path.name}: downgrade() must undo every op.{create} in upgrade()"
+            )
 
 
 def test_env_py_reads_url_from_settings_and_targets_base_metadata() -> None:
     source = ENV_PY.read_text(encoding="utf-8")
     compile(source, str(ENV_PY), "exec")  # syntactically valid
     assert "get_settings().database_url" in source
+    assert "load_local_env()" in source  # apps/api/.env is honoured, like app.main
     assert "target_metadata = Base.metadata" in source
     assert "import app.models" in source
     assert 'config.get_main_option("sqlalchemy.url")' not in source
 
 
-@pytest.mark.usefixtures("_restore_logging")
-def test_offline_upgrade_runs_without_a_database(monkeypatch: pytest.MonkeyPatch) -> None:
+def _offline(monkeypatch: pytest.MonkeyPatch, direction: str, target: str) -> str:
+    """Render ``alembic <direction> <target> --sql`` and fail if anything tries to connect."""
     attempts: list[tuple[Any, ...]] = []
 
     def fake_connect(*args: Any, **kwargs: Any) -> None:
@@ -84,11 +83,47 @@ def test_offline_upgrade_runs_without_a_database(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setenv("DATABASE_URL", TEST_URL)
 
     output = io.StringIO()
-    command.upgrade(_config(output), "head", sql=True)  # `alembic upgrade head --sql`
-
+    getattr(command, direction)(_config(output), target, sql=True)
     assert attempts == []
-    # No revisions -> no DDL is emitted; only the transaction wrapper may appear.
-    # The SQL Server dialect renders it as BEGIN TRANSACTION / COMMIT (+ GO
-    # batch separators); nothing else is acceptable.
-    emitted = [line.strip().rstrip(";") for line in output.getvalue().splitlines() if line.strip()]
-    assert all(line in ("BEGIN TRANSACTION", "BEGIN", "COMMIT", "GO") for line in emitted), emitted
+    return output.getvalue()
+
+
+@pytest.mark.usefixtures("_restore_logging")
+def test_offline_upgrade_creates_both_tables_without_a_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sql = _offline(monkeypatch, "upgrade", "head")  # `alembic upgrade head --sql`
+
+    assert "CREATE TABLE conversations" in sql
+    assert "CREATE TABLE messages" in sql
+    assert "CONSTRAINT fk_messages_conversation_id_conversations FOREIGN KEY" in sql
+    assert "CREATE INDEX ix_conversations_updated_at ON conversations (updated_at)" in sql
+    assert "CREATE INDEX ix_messages_conversation_id_created_at" in sql
+    assert f"VALUES ('{FIRST_REVISION}')" in sql
+
+
+@pytest.mark.usefixtures("_restore_logging")
+def test_offline_sql_never_uses_deprecated_large_types(monkeypatch: pytest.MonkeyPatch) -> None:
+    # ISJSON() rejects NTEXT, so `citations` must be NVARCHAR(max) even when rendered offline.
+    sql = _offline(monkeypatch, "upgrade", "head")
+
+    assert "NTEXT" not in sql
+    assert "citations NVARCHAR(max) NULL" in sql
+    assert "content NVARCHAR(max) NOT NULL" in sql
+
+
+@pytest.mark.usefixtures("_restore_logging")
+def test_offline_downgrade_drops_everything_the_upgrade_created(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sql = _offline(monkeypatch, "downgrade", f"{FIRST_REVISION}:base")
+
+    for statement in (
+        "DROP INDEX ix_messages_conversation_id_created_at ON messages",
+        "DROP TABLE messages",
+        "DROP INDEX ix_conversations_updated_at ON conversations",
+        "DROP TABLE conversations",
+    ):
+        assert statement in sql
+    # messages (the FK side) goes before conversations
+    assert sql.index("DROP TABLE messages") < sql.index("DROP TABLE conversations")

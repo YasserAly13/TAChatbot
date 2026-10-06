@@ -13,17 +13,25 @@ migrations are applied by Yasser Aly from a developer machine.
 
 ### 1.1 — Conversation and message models + first migration
 
-- **status:** todo
+- **status:** done
 - **depends_on:** [infra:1.1]
 - **layers:** [model, migration]
 - **acceptance:**
   - SQLAlchemy models `Conversation` and `Message` in `app/models/` match `docs/design/db-design.md`: `uniqueidentifier` PKs, `conversations.title nvarchar(200)` default "New conversation", `messages.role` `CHECK IN ('user','assistant')`, `messages.citations` `CHECK (citations IS NULL OR ISJSON(citations)=1)`, FK `messages.conversation_id → conversations.id` `ON DELETE NO ACTION`, indexes on `conversations.updated_at` and `messages(conversation_id, created_at)`, `datetime2(3)` timestamps with server defaults
   - the first Alembic revision creates both tables with a working `downgrade`; `alembic upgrade head --sql` renders valid T-SQL offline
 - **how_to_test:**
+  - `just test` → api 217 passed, web 136 passed (`tests/test_models.py`, `tests/test_alembic.py` cover the models, the offline upgrade/downgrade and model-vs-migration drift)
+  - `cd apps/api; uv run alembic heads` → `7c1d4e2a9b30 (head)`
+  - `cd apps/api; uv run alembic upgrade head --sql` → `CREATE TABLE conversations` and `CREATE TABLE messages` with `NVARCHAR(max)` (never `NTEXT`), `ck_messages_role`, `ck_messages_citations_json`, `fk_messages_conversation_id_conversations` and two `CREATE INDEX` lines; prints SQL only, connects to nothing
+  - after you apply it (needs_human): `uv run alembic current` → `7c1d4e2a9b30 (head)`; the dev database has tables `conversations`, `messages` and `alembic_version`
 - **needs_human:**
-  - review the offline SQL, then run `uv run --directory apps/api alembic upgrade head` against the dev database (ADR-0013)
+  - review the offline SQL, then run `cd apps/api; uv run alembic upgrade head` against the dev database (ADR-0013) — the first run also creates `alembic_version`
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`
+  - 2026-10-06 — started by Claude
+  - 2026-10-06 — implemented; awaiting test by Yasser Aly. Files: `app/models/conversation.py` (new), `app/models/__init__.py`, `alembic/versions/20261006_1200-7c1d4e2a9b30_create_conversations_and_messages.py` (new, hand-written — the dev DB was not used), `tests/test_models.py` (new), `tests/conftest.py` (new), `tests/test_alembic.py`; docs: root + api `CLAUDE.md`, api `README.md`, `docs/development/testing.md`, `docs/getting-started.md`; api 0.3.0 → 0.4.0 + `CHANGELOG.md`. `UnicodeText` → `Unicode()` because NTEXT broke `ISJSON`. Reviews: code-reviewer (no blocking; applied ROLES-built check, `lazy="raise"`, shared `_restore_logging`, stronger downgrade test), security-reviewer (no blocking; applied quote-escaped default literal)
+  - 2026-10-06 — fix during test: `alembic/env.py` now loads `apps/api/.env` (it used the placeholder URL)
+  - 2026-10-06 — confirmed by Yasser Aly: connection test passed, migration `7c1d4e2a9b30` applied to dev
 
 ### 1.2 — Threat model: conversation store and ingest endpoint
 
@@ -55,6 +63,7 @@ migrations are applied by Yasser Aly from a developer machine.
 - **needs_human:** []
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`; tests use a fake session, so authoring does not wait for the migration to be applied
+  - 2026-10-06 — from the 1.1 review: `DATETIME2` values come back naive (they are UTC) — attach UTC so responses serialise with `Z`; nothing bumps `updated_at` automatically — the repository must, with a test; relationships are `lazy="raise"` (use `selectinload`)
 
 ### 2.2 — Read one conversation with its messages
 

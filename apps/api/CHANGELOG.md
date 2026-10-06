@@ -7,6 +7,30 @@ The two services version independently.
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-10-06
+
+### Added
+
+- **Conversation and message models** (`app/models/conversation.py`, roadmap api 1.1):
+  `conversations` (`id`, `title nvarchar(200)` default "New conversation", `created_at`,
+  `updated_at`) and `messages` (`conversation_id` FK, `role` check `user|assistant`,
+  `content`/`citations` `nvarchar(max)` with an `ISJSON` check on `citations`, `token_count`,
+  `created_at`); `datetime2(3)` timestamps defaulting to `SYSUTCDATETIME()`; indexes for the
+  newest-first list and the oldest-first thread (`docs/design/db-design.md`).
+- **First Alembic revision** `7c1d4e2a9b30` creating both tables, with a full `downgrade()`.
+  Not applied by the project — a named human applies it to dev (ADR-0013).
+- `tests/test_models.py` compiles the models for SQL Server and fails if the migration's
+  `CREATE TABLE` drifts from the model; `tests/test_alembic.py` now covers offline upgrade and
+  downgrade of the real revision.
+
+### Fixed
+
+- `alembic/env.py` now loads `apps/api/.env` (like `app.main`, ambient env wins), so
+  `alembic upgrade`/`current` on a developer machine reach the database in `.env` instead of the
+  placeholder URL.
+
+No HTTP API change.
+
 ## [0.3.0] — 2026-10-04
 
 ### Added

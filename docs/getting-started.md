@@ -389,11 +389,12 @@ thing to look at, not the placeholder URL. Spelling traps: the scheme is `mssql+
 Driver 18 installed on your machine only when you actually query; tests never do. Background:
 [_Database (SQLAlchemy 2 async + Alembic)_](../README.md#database-sqlalchemy-2-async--alembic).
 
-### `alembic` prints nothing / only `BEGIN TRANSACTION;` … `COMMIT;`
+### `alembic upgrade head --sql` — what should it print?
 
-Expected. `alembic/versions/` is empty, so `uv run --directory apps/api alembic heads` has
-nothing to list and `alembic upgrade head --sql` has no SQL to render. Migrations are never run
-by this platform; see [data.md](architecture/data.md) for how a project grows the model set.
+The `CREATE TABLE conversations` / `CREATE TABLE messages` T-SQL of revision `7c1d4e2a9b30`
+(`uv run --directory apps/api alembic heads` lists it). Rendering needs no database. Applying it
+is a deliberate step by a named human against dev (ADR-0013), never an agent; see
+[data.md](architecture/data.md) for how the model set grows.
 
 ---
 
