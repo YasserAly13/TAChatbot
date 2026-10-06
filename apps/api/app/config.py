@@ -36,10 +36,10 @@ def load_local_env(path: Path | None = None) -> bool:
 
 # This service's fixed identity (part of the shared cross-service contract).
 SERVICE_NAME = "api"
-DEFAULT_OTEL_SERVICE_NAME = "ai-accelerator-api"
+DEFAULT_OTEL_SERVICE_NAME = "team-assistant-api"
 DEFAULT_PORT = 8000
 # Distribution name as declared in pyproject.toml ([project].name).
-DISTRIBUTION_NAME = "ai-accelerator-api"
+DISTRIBUTION_NAME = "team-assistant-api"
 # Placeholder DATABASE_URL — Azure SQL Database via the `mssql+aioodbc` dialect
 # (ADR-0008). The engine is lazy, so the baseline boots with this unreachable
 # placeholder — no connection is opened until the first query. Query-string

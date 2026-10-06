@@ -38,7 +38,7 @@ async def ping() -> dict[str, str]:
     _log.info("ping", path="/ping")
     return {
         "service": SERVICE_NAME,
-        "message": "hello from the AI Accelerator api service",
+        "message": "hello from the Team Assistant api service",
         "trace_id": trace_id,
     }
 

@@ -1,7 +1,7 @@
 [project]
-name = "ai-accelerator-api"
+name = "team-assistant-api"
 version = "0.3.0"
-description = "AI Accelerator — Python (FastAPI) backend. Part of the brandless starter template built by Orion Digital Solutions for the Diriyah Company AI team."
+description = "Team Assistant — Python (FastAPI) backend. Part of the brandless starter template built by Orion Digital Solutions for the Diriyah Company AI team."
 authors = [{ name = "Orion Digital Solutions" }]
 maintainers = [{ name = "Orion Digital Solutions" }]
 readme = "README.md"

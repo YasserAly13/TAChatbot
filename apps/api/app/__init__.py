@@ -1,8 +1,8 @@
-"""AI Accelerator - Python (FastAPI) service.
+"""Team Assistant - Python (FastAPI) service.
 
 Service identity:
     name          = "api"
-    OTEL service  = "ai-accelerator-api" (default)
+    OTEL service  = "team-assistant-api" (default)
     trace origin  = "0c70"
     port          = 8000
 """

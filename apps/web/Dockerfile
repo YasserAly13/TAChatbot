@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# Multi-stage build for the AI Accelerator web app. Build context = apps/web.
+# Multi-stage build for the Team Assistant web app. Build context = apps/web.
 # Produces a Next.js standalone runtime image running as a non-root user.
 
 # ---- base -------------------------------------------------------------------

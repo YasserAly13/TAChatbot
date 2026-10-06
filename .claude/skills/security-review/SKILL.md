@@ -1,6 +1,6 @@
 ---
 name: security-review
-description: Run an OWASP-aligned security checklist against the current diff, adapted to the AI Accelerator (no auth yet — BFF boundary, secrets, external HTTP, the SQLAlchemy/Alembic layer, CORS, containers). The lightweight on-demand version of the security-reviewer agent.
+description: Run an OWASP-aligned security checklist against the current diff, adapted to the Team Assistant (no auth yet — BFF boundary, secrets, external HTTP, the SQLAlchemy/Alembic layer, CORS, containers). The lightweight on-demand version of the security-reviewer agent.
 ---
 
 # Security review checklist

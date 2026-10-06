@@ -1,11 +1,11 @@
 # Architecture
 
-The deep-dive layer of the AI Accelerator's documentation. The root
+The deep-dive layer of the Team Assistant's documentation. The root
 [`README.md`](../../README.md) tells you **what the template is and how to run it**; these
 documents explain **how it is built and why**, in enough detail to change it safely.
 
-They describe the template itself — the placeholder names (`AI Accelerator`, `ai-accelerator`,
-`@ai-accelerator/*`) are intentional and stay until a project runs `/rename-project`.
+They describe the template itself — the placeholder names (`Team Assistant`, `team-assistant`,
+`@team-assistant/*`) are intentional and stay until a project runs `/rename-project`.
 
 ## Start with the living document
 

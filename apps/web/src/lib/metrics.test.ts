@@ -1,6 +1,6 @@
 /**
  * Custom-metric helper tests (Phase 3, offline):
- *   - namespaced meters ("ai-accelerator.<scope>") from the global provider
+ *   - namespaced meters ("team-assistant.<scope>") from the global provider
  *   - bounded status classes / upstream-target labels
  *   - starter instruments record with bounded attributes only
  *   - recording is best-effort: a throwing provider never breaks the caller
@@ -65,9 +65,9 @@ beforeEach(() => {
 });
 
 describe('getMeter', () => {
-  it('namespaces meters as ai-accelerator.<scope>', () => {
+  it('namespaces meters as team-assistant.<scope>', () => {
     getMeter('billing');
-    expect(meterNames).toContain('ai-accelerator.billing');
+    expect(meterNames).toContain('team-assistant.billing');
   });
 });
 
@@ -120,7 +120,7 @@ describe('recordServerDuration', () => {
     });
     expect(recorded).toEqual([
       {
-        instrument: 'ai-accelerator.http.server.duration',
+        instrument: 'team-assistant.http.server.duration',
         value: 12,
         attributes: { route_class: '/api/ping-backend', method: 'GET', status_class: '2xx' },
       },
@@ -140,7 +140,7 @@ describe('recordHopDuration', () => {
     recordHopDuration({ target: 'api', outcome: '2xx', durationMs: 5 });
     expect(recorded).toEqual([
       {
-        instrument: 'ai-accelerator.http.client.hop.duration',
+        instrument: 'team-assistant.http.client.hop.duration',
         value: 5,
         attributes: { target: 'api', outcome: '2xx' },
       },
@@ -153,7 +153,7 @@ describe('recordUpstreamFailure', () => {
     recordUpstreamFailure('api', 'http_5xx');
     expect(recorded).toEqual([
       {
-        instrument: 'ai-accelerator.bff.upstream.failures',
+        instrument: 'team-assistant.bff.upstream.failures',
         value: 1,
         attributes: { target: 'api', reason: 'http_5xx' },
       },

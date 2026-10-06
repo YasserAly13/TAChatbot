@@ -1,5 +1,5 @@
 # =============================================================================
-# AI Accelerator — task runner (mirrors justfile, same targets).
+# Team Assistant — task runner (mirrors justfile, same targets).
 # Requires: docker, pnpm (via corepack), uv, Node 24 (via .nvmrc / fnm).
 # =============================================================================
 .DEFAULT_GOAL := help

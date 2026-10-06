@@ -97,7 +97,7 @@ export default function Home() {
 
   return (
     <main>
-      <h1>AI Accelerator</h1>
+      <h1>Team Assistant</h1>
       <p>
         Each button calls a same-origin Next route handler (the BFF). The BFF calls the api backend
         server-side and forwards the same <code>x-trace-id</code> across the hop. The{' '}

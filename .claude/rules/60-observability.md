@@ -65,7 +65,7 @@ Each service's OTel resource carries `service.name` (→ App Insights **cloud ro
 (`OTEL_SERVICE_NAME`, `OTEL_RESOURCE_ATTRIBUTES`) that both distros' env resource detectors
 read:
 
-- Defaults: `service.name` = `ai-accelerator-web|api`; `service.instance.id` = container
+- Defaults: `service.name` = `team-assistant-web|api`; `service.instance.id` = container
   replica name (`CONTAINER_APP_REPLICA_NAME`) → `HOSTNAME` → os hostname.
 - **Append-only:** operator-provided `OTEL_SERVICE_NAME` / `OTEL_RESOURCE_ATTRIBUTES` values are
   **never overridden**. Do **not** set `service.namespace` (it would switch App Insights to the
@@ -150,7 +150,7 @@ The structured stdout line is the source of truth; export is a **tee**, never a 
 ## Metrics & events (Phase 3 — required)
 
 - **Meter accessor:** `getMeter(scope)` / `get_meter(scope)` returns the namespaced meter
-  `ai-accelerator.<scope>` (`src/lib/metrics.ts` · `app/metrics.py`). In degraded mode the OTel
+  `team-assistant.<scope>` (`src/lib/metrics.ts` · `app/metrics.py`). In degraded mode the OTel
   API returns a no-op meter — record unconditionally, never null-check telemetry. All record
   helpers are best-effort and never throw into the request path.
 - **CARDINALITY DISCIPLINE (written rule — enforced in `/code-review`):** metric AND event
@@ -159,11 +159,11 @@ The structured stdout line is the source of truth; export is a **tee**, never a 
   (`api`/`other`). **Never** ids, names, emails, or paths with parameter values
   (`/things/42` is a violation; `/things/{id}` is correct). App Insights bills every attribute
   combination as its own series and caps at 5,000 series/metric/day.
-- **Starter set (implemented):** `ai-accelerator.http.server.duration` histogram (ms; per-service
+- **Starter set (implemented):** `team-assistant.http.server.duration` histogram (ms; per-service
   request duration by `route_class`/`method`/`status_class` — recorded in each trace
-  middleware/wrapper) · `ai-accelerator.http.client.hop.duration` histogram (hop duration by
+  middleware/wrapper) · `team-assistant.http.client.hop.duration` histogram (hop duration by
   `target`/`outcome` — recorded in the traced outbound wrappers) ·
-  `ai-accelerator.bff.upstream.failures` counter (web only; `target` × `network_error`/`http_5xx`).
+  `team-assistant.bff.upstream.failures` counter (web only; `target` × `network_error`/`http_5xx`).
 - **Runtime metrics:** Node registers `instrumentation-runtime-node` (event-loop lag/utilization,
   GC, heap) at init; the api registers the system-metrics instrumentor with a **runtime-only**
   selection (`process.*`/`cpython.*` — host-wide disk/network series are deliberately excluded).

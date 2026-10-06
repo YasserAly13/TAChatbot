@@ -88,7 +88,7 @@ class TestApplyResourceDefaults:
         import os
 
         obs.apply_resource_defaults()
-        assert os.environ["OTEL_SERVICE_NAME"] == "ai-accelerator-api"
+        assert os.environ["OTEL_SERVICE_NAME"] == "team-assistant-api"
 
     def test_never_overrides_operator_service_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import os

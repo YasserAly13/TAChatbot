@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: PR-style review of the current diff against the AI Accelerator's constitution (CLAUDE.md), the path-scoped rules in .claude/rules/, the per-app CLAUDE.md files, and the ADRs. Invoke before opening any PR. Narrower siblings exist — security-reviewer (security only) and observability-instrumenter (telemetry only).
+description: PR-style review of the current diff against the Team Assistant's constitution (CLAUDE.md), the path-scoped rules in .claude/rules/, the per-app CLAUDE.md files, and the ADRs. Invoke before opening any PR. Narrower siblings exist — security-reviewer (security only) and observability-instrumenter (telemetry only).
 tools: Read, Grep, Glob, Bash
 model: sonnet
 ---

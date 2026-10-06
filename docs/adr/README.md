@@ -1,7 +1,7 @@
 # Architecture Decision Records
 
 Numbered, immutable records of stack- and architecture-affecting decisions for the
-**AI Accelerator**. They are the team's memory — without them the same debates
+**Team Assistant**. They are the team's memory — without them the same debates
 recur and agents re-invent decisions on every change.
 
 - Write one with `/write-adr` (or the `adr-writer` agent) when a tool/pattern/standard

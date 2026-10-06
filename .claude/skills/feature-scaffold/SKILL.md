@@ -1,6 +1,6 @@
 ---
 name: feature-scaffold
-description: Scaffold a complete feature in one pass following AI Accelerator conventions, in whichever service applies — a Next.js BFF route + UI (apps/web), a FastAPI router with an optional SQLAlchemy model + repository (apps/api), an AI feature on the LangGraph runtime (target ai), or a RAG corpus + retrieval feature (target rag). Every scaffold ends with a "How to test" and a "Needs a human" section.
+description: Scaffold a complete feature in one pass following Team Assistant conventions, in whichever service applies — a Next.js BFF route + UI (apps/web), a FastAPI router with an optional SQLAlchemy model + repository (apps/api), an AI feature on the LangGraph runtime (target ai), or a RAG corpus + retrieval feature (target rag). Every scaffold ends with a "How to test" and a "Needs a human" section.
 ---
 
 # Feature scaffold

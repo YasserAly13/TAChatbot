@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Team Assistant — wireframe /chat</title>
+    <style>
+      :root {
+        --ink: #1f2937;
+        --muted: #6b7280;
+        --line: #9ca3af;
+        --bg: #f9fafb;
+        --panel: #fff;
+        --accent: #374151;
+        --danger: #b91c1c;
+        --danger-bg: #fee2e2;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.45 system-ui,
+          -apple-system,
+          Segoe UI,
+          Roboto,
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+      }
+      .bar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 16px;
+        border-bottom: 1px dashed var(--line);
+        background: var(--panel);
+        flex-wrap: wrap;
+      }
+      .bar strong {
+        margin-right: auto;
+      }
+      .bar button {
+        font: inherit;
+        padding: 4px 10px;
+        border: 1px solid var(--line);
+        background: var(--bg);
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .bar button[aria-pressed='true'] {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .frame {
+        max-width: 1100px;
+        margin: 24px auto;
+        border: 2px solid var(--line);
+        background: var(--panel);
+        display: grid;
+        grid-template-rows: auto 1fr;
+        min-height: 640px;
+      }
+      header.app {
+        padding: 12px 16px;
+        border-bottom: 1px dashed var(--line);
+        font-weight: 600;
+        font-size: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        min-height: 580px;
+      }
+      aside {
+        border-right: 1px dashed var(--line);
+        padding: 12px;
+      }
+      h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 0 0 8px;
+      }
+      .row {
+        padding: 8px;
+        border: 1px dashed transparent;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .row:hover {
+        border-color: var(--line);
+      }
+      .row.selected {
+        background: var(--bg);
+        border-color: var(--line);
+      }
+      .row small {
+        display: block;
+        color: var(--muted);
+      }
+      .empty {
+        color: var(--muted);
+        padding: 24px 8px;
+        text-align: center;
+        border: 1px dashed var(--line);
+        border-radius: 4px;
+      }
+      main {
+        display: grid;
+        grid-template-rows: 1fr auto;
+      }
+      .thread {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .msg {
+        max-width: 80%;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .msg.you {
+        align-self: flex-end;
+        background: var(--bg);
+      }
+      .msg .who {
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 4px;
+      }
+      .cursor {
+        display: inline-block;
+        width: 8px;
+        height: 14px;
+        background: var(--ink);
+        vertical-align: -2px;
+        animation: blink 1s steps(2) infinite;
+      }
+      @keyframes blink {
+        to {
+          opacity: 0;
+        }
+      }
+      .sources {
+        border-top: 1px dotted var(--line);
+        margin-top: 8px;
+        padding-top: 8px;
+        font-size: 13px;
+      }
+      .sources div {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .sources span:last-child {
+        color: var(--muted);
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+      }
+      .banner {
+        align-self: stretch;
+        background: var(--danger-bg);
+        color: var(--danger);
+        border: 1px solid var(--danger);
+        border-radius: 4px;
+        padding: 8px 12px;
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
+      }
+      .composer {
+        border-top: 1px dashed var(--line);
+        padding: 12px 16px;
+      }
+      .composer form {
+        display: flex;
+        gap: 8px;
+      }
+      .composer input {
+        flex: 1;
+        font: inherit;
+        padding: 8px;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+      }
+      .btn {
+        font: inherit;
+        padding: 8px 16px;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn.secondary {
+        background: #fff;
+        color: var(--accent);
+        font-size: 13px;
+        padding: 6px 12px;
+      }
+      .btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .counter {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      [data-state] .only {
+        display: none;
+      }
+      [data-state='empty'] .s-empty,
+      [data-state='streaming'] .s-streaming,
+      [data-state='error'] .s-error,
+      [data-state='done'] .s-done,
+      [data-state='reopened'] .s-reopened {
+        display: revert;
+      }
+      .legend {
+        max-width: 1100px;
+        margin: 0 auto 32px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .legend code {
+        background: #fff;
+        border: 1px solid var(--line);
+        padding: 0 4px;
+        border-radius: 3px;
+      }
+      @media (max-width: 768px) {
+        .cols {
+          grid-template-columns: 1fr;
+        }
+        aside {
+          border-right: 0;
+          border-bottom: 1px dashed var(--line);
+        }
+        .msg {
+          max-width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body data-state="done">
+    <div class="bar">
+      <strong>Wireframe — Team Assistant · /chat</strong>
+      <span style="color: var(--muted)">state:</span>
+      <button data-set="empty">empty</button>
+      <button data-set="streaming">streaming</button>
+      <button data-set="error">error</button>
+      <button data-set="done" aria-pressed="true">done</button>
+      <button data-set="reopened">reopened</button>
+    </div>
+
+    <div class="frame">
+      <header class="app">
+        <span>Team Assistant</span><button class="btn secondary">+ New chat</button>
+      </header>
+      <div class="cols">
+        <aside>
+          <h2>Conversations</h2>
+          <div class="only s-empty empty">No chats yet</div>
+          <div class="only s-streaming s-error s-done s-reopened">
+            <div class="row selected only s-streaming s-error s-done">
+              Trace ids<small>today · 10:12</small>
+            </div>
+            <div class="row only s-reopened">Trace ids<small>today · 10:12</small></div>
+            <div class="row only s-streaming s-error s-done">
+              Error contract<small>today · 09:40</small>
+            </div>
+            <div class="row selected only s-reopened">
+              Error contract<small>today · 09:40</small>
+            </div>
+            <div class="row">Onboarding<small>yesterday</small></div>
+          </div>
+        </aside>
+
+        <main>
+          <div class="thread">
+            <div class="only s-empty" style="color: var(--muted); margin: auto; text-align: center">
+              Start a new chat and ask about the team's documents.
+            </div>
+
+            <div class="msg you only s-streaming s-error s-done">
+              <div class="who">You</div>
+              How does trace_id propagation work?
+            </div>
+            <div class="msg only s-streaming">
+              <div class="who">Assistant</div>
+              The trace id is minted by the BFF when a request arrives without one
+              <span class="cursor"></span>
+              <div class="sources">
+                <h2 style="margin-bottom: 4px">Sources</h2>
+                <div><span>trace_id — the invariant</span><span>README.md</span></div>
+              </div>
+            </div>
+            <div class="banner only s-error">
+              error: ai_unavailable · trace_id: 0eb01f8e2c9a7b4d16035e9c2a8f4712
+            </div>
+            <div class="msg only s-done">
+              <div class="who">Assistant</div>
+              The trace id is minted by the BFF when a request arrives without a valid
+              <code>x-trace-id</code>, forwarded unchanged to the api and echoed on every response.
+              <div class="sources">
+                <h2 style="margin-bottom: 4px">Sources</h2>
+                <div><span>trace_id — the invariant</span><span>README.md</span></div>
+                <div>
+                  <span>Observability contract</span><span>.claude/rules/60-observability.md</span>
+                </div>
+              </div>
+            </div>
+            <div class="msg you only s-done">
+              <div class="who">You</div>
+              And on the api side?
+            </div>
+            <div class="msg only s-done">
+              <div class="who">Assistant</div>
+              The api adopts a valid inbound id and only mints its own (origin <code>0c70</code>)
+              when none is present — the last 10 messages of this conversation were sent as history.
+              <div class="sources">
+                <h2 style="margin-bottom: 4px">Sources</h2>
+                <div><span>FastAPI conventions</span><span>.claude/rules/35-fastapi.md</span></div>
+              </div>
+            </div>
+
+            <div class="msg you only s-reopened">
+              <div class="who">You</div>
+              What is the error contract?
+            </div>
+            <div class="msg only s-reopened">
+              <div class="who">Assistant</div>
+              Every non-2xx body is <code>{"error": code, "trace_id": id}</code>…
+              <div class="sources">
+                <h2 style="margin-bottom: 4px">Sources</h2>
+                <div><span>HTTP API reference</span><span>docs/reference/http-api.md</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="composer">
+            <form onsubmit="return false;">
+              <input class="only s-empty s-done s-error s-reopened" placeholder="Ask a question…" />
+              <input
+                class="only s-streaming"
+                value="How does trace_id propagation work?"
+                disabled
+              />
+              <button class="btn only s-empty s-done s-error s-reopened">Send</button>
+              <button class="btn only s-streaming" disabled>Send</button>
+            </form>
+            <div class="counter">
+              0 / 4,000 <span class="only s-reopened">· continuing “Error contract”</span>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <div class="legend">
+      States map to <code>docs/examples/team-assistant/wireframe.md</code>: empty (<code
+        >+ New chat</code
+      >
+      → <code>POST /api/v1/conversations</code>) · streaming (<code
+        >POST /api/v1/conversations/{id}/ask/stream</code
+      >) · error · done (conversation moves to the top) · reopened (<code
+        >GET /api/v1/conversations/{id}</code
+      >, the input continues it). Reused: <code>ChatThread</code>, <code>MessageInput</code>,
+      <code>ChatPanel</code>; new: <code>ConversationList</code>, <code>Sources</code>.
+    </div>
+
+    <script>
+      document.querySelectorAll('[data-set]').forEach((b) =>
+        b.addEventListener('click', () => {
+          document.body.dataset.state = b.dataset.set;
+          document
+            .querySelectorAll('[data-set]')
+            .forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        }),
+      );
+    </script>
+  </body>
+</html>

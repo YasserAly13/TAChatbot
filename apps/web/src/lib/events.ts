@@ -20,7 +20,7 @@ import { getObservabilityState } from '@/lib/observability';
  */
 
 export const CUSTOM_EVENT_MARKER = 'microsoft.custom_event.name';
-const EVENT_LOGGER_NAME = 'ai-accelerator-web.events';
+const EVENT_LOGGER_NAME = 'team-assistant-web.events';
 
 export type EventAttributes = Record<string, string | number | boolean>;
 

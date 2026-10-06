@@ -1,6 +1,6 @@
 ---
 name: observability-instrumenter
-description: Instruments new routes, outbound calls, and operations to satisfy the AI Accelerator observability contract — trace_id propagation, structured logs, and OTel spans matching what each service actually uses. Invoke when code lands that isn't yet logged + trace-propagated. Enforces .claude/rules/60-observability.md.
+description: Instruments new routes, outbound calls, and operations to satisfy the Team Assistant observability contract — trace_id propagation, structured logs, and OTel spans matching what each service actually uses. Invoke when code lands that isn't yet logged + trace-propagated. Enforces .claude/rules/60-observability.md.
 tools: Read, Edit, Write, Grep, Glob
 model: sonnet
 ---
@@ -21,7 +21,7 @@ Every request, every service: adopt/generate `x-trace-id` → store request-scop
   - Outbound calls → **`traced_client()`** (`app/tracing.py`). Read the id via `get_trace_id()`.
   - Logs → `get_logger(...)` (structlog). Request lifecycle via `TraceMiddleware`.
   - DB access → the session dependencies (`Depends(get_session)` / `Depends(get_external_session)`); DB dependency spans already come from the SQLAlchemy instrumentation registered at init without an engine (ADR-0008) — don't register it per engine and don't add driver-level packages. Engine factories must resolve `create_async_engine` at call time (`sa_asyncio.create_async_engine`). Log the operation (kind/outcome), never the SQL parameters or either database URL.
-  - AI calls → inside `model_call_span()` (`app/ai/telemetry.py`): `gen_ai.*` span attributes, `ai-accelerator.ai.*` metrics, one `ai.model_call` event, retrieval via `record_retrieval()` — **content-free** (no prompt, completion, retrieved text, user id). Bounded attributes only: deployment, outcome, token type, error kind.
+  - AI calls → inside `model_call_span()` (`app/ai/telemetry.py`): `gen_ai.*` span attributes, `team-assistant.ai.*` metrics, one `ai.model_call` event, retrieval via `record_retrieval()` — **content-free** (no prompt, completion, retrieved text, user id). Bounded attributes only: deployment, outcome, token type, error kind.
 
 ## Fail-safe (don't break it)
 

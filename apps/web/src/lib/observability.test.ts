@@ -267,7 +267,7 @@ describe('cloud role identity (resource env defaults)', () => {
   it('defaults OTEL_SERVICE_NAME when unset', () => {
     const env = testEnv({});
     applyResourceDefaults(env);
-    expect(env.OTEL_SERVICE_NAME).toBe('ai-accelerator-web');
+    expect(env.OTEL_SERVICE_NAME).toBe('team-assistant-web');
   });
 
   it('never overrides an operator-provided OTEL_SERVICE_NAME', () => {

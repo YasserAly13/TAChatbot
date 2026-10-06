@@ -1,10 +1,10 @@
-# AI Accelerator — api service
+# Team Assistant — api service
 
-Python 3.14 + FastAPI service for the [AI Accelerator](../../README.md) — the brandless
+Python 3.14 + FastAPI service for the [Team Assistant](../../README.md) — the brandless
 starter template built by [Orion Digital Solutions](https://www.orion360.com/) for the [Diriyah Company](https://www.diriyahcompany.sa/en/) AI team — managed by
 [uv](https://docs.astral.sh/uv/).
 
-- Service identity: `api` · OTEL service `ai-accelerator-api` · trace origin `0c70`
+- Service identity: `api` · OTEL service `team-assistant-api` · trace origin `0c70`
 - Listens on port **8000** (shared contract: web=3000, api=8000)
 - The **sole backend**: the Next.js BFF (`apps/web`) is its only consumer (ADR-0003); it owns the
   database via SQLAlchemy 2 async + Alembic on Azure SQL (ADR-0008)
@@ -81,6 +81,6 @@ feature that calls the AI layer without them raises `AINotConfigured`. Conventio
 ## Docker
 
 ```bash
-docker build -t ai-accelerator-api .   # build context = apps/api; installs ODBC Driver 18
-docker run -p 8000:8000 ai-accelerator-api
+docker build -t team-assistant-api .   # build context = apps/api; installs ODBC Driver 18
+docker run -p 8000:8000 team-assistant-api
 ```

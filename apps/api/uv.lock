@@ -1,69 +1,6 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
-
-[[package]]
-name = "ai-accelerator-api"
-version = "0.3.0"
-source = { editable = "." }
-dependencies = [
-    { name = "aioodbc" },
-    { name = "alembic" },
-    { name = "azure-identity" },
-    { name = "azure-monitor-opentelemetry" },
-    { name = "azure-search-documents" },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "langchain-core" },
-    { name = "langchain-openai" },
-    { name = "langgraph" },
-    { name = "opentelemetry-instrumentation-fastapi" },
-    { name = "opentelemetry-instrumentation-httpx" },
-    { name = "opentelemetry-instrumentation-sqlalchemy" },
-    { name = "opentelemetry-instrumentation-system-metrics" },
-    { name = "pyodbc" },
-    { name = "python-dotenv" },
-    { name = "sqlalchemy", extra = ["asyncio"] },
-    { name = "structlog" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "aioodbc", specifier = "==0.5.0" },
-    { name = "alembic", specifier = "==1.20.0" },
-    { name = "azure-identity", specifier = "==1.25.3" },
-    { name = "azure-monitor-opentelemetry", specifier = "==1.8.8" },
-    { name = "azure-search-documents", specifier = "==12.0.0" },
-    { name = "fastapi", specifier = "==0.136.3" },
-    { name = "httpx", specifier = "==0.28.1" },
-    { name = "langchain-core", specifier = "==1.6.5" },
-    { name = "langchain-openai", specifier = "==1.6.6" },
-    { name = "langgraph", specifier = "==1.2.12" },
-    { name = "opentelemetry-instrumentation-fastapi", specifier = "==0.61b0" },
-    { name = "opentelemetry-instrumentation-httpx", specifier = "==0.61b0" },
-    { name = "opentelemetry-instrumentation-sqlalchemy", specifier = "==0.61b0" },
-    { name = "opentelemetry-instrumentation-system-metrics", specifier = "==0.61b0" },
-    { name = "pyodbc", specifier = "==5.3.0" },
-    { name = "python-dotenv", specifier = "==1.2.2" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = "==2.0.54" },
-    { name = "structlog", specifier = "==26.1.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = "==0.49.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = "==9.0.3" },
-    { name = "pytest-cov", specifier = "==7.1.0" },
-    { name = "ruff", specifier = "==0.15.16" },
-]
 
 [[package]]
 name = "aioodbc"
@@ -1714,6 +1651,69 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5e/89/b4a0bcfdf4f71a3dea31379f095929613d7e4528a0996bca6aa964cd0dca/structlog-26.1.0.tar.gz", hash = "sha256:f63a716cbd1b1291cf7661de7794b455acfa4c43c5bcf1630e6ad5ddc1adb3b7", size = 1459881, upload-time = "2026-06-06T07:33:39.348Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/18/489c97b834dfff9cf2fc2507cede4bcd4b11e67f84bc462acd1992496f86/structlog-26.1.0-py3-none-any.whl", hash = "sha256:e081a26d6c373e6d201eca24eede26d8ffab07f88f477822e679183428d3d91e", size = 73764, upload-time = "2026-06-06T07:33:38.046Z" },
+]
+
+[[package]]
+name = "team-assistant-api"
+version = "0.3.0"
+source = { editable = "." }
+dependencies = [
+    { name = "aioodbc" },
+    { name = "alembic" },
+    { name = "azure-identity" },
+    { name = "azure-monitor-opentelemetry" },
+    { name = "azure-search-documents" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "langchain-core" },
+    { name = "langchain-openai" },
+    { name = "langgraph" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-instrumentation-httpx" },
+    { name = "opentelemetry-instrumentation-sqlalchemy" },
+    { name = "opentelemetry-instrumentation-system-metrics" },
+    { name = "pyodbc" },
+    { name = "python-dotenv" },
+    { name = "sqlalchemy", extra = ["asyncio"] },
+    { name = "structlog" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "aioodbc", specifier = "==0.5.0" },
+    { name = "alembic", specifier = "==1.20.0" },
+    { name = "azure-identity", specifier = "==1.25.3" },
+    { name = "azure-monitor-opentelemetry", specifier = "==1.8.8" },
+    { name = "azure-search-documents", specifier = "==12.0.0" },
+    { name = "fastapi", specifier = "==0.136.3" },
+    { name = "httpx", specifier = "==0.28.1" },
+    { name = "langchain-core", specifier = "==1.6.5" },
+    { name = "langchain-openai", specifier = "==1.6.6" },
+    { name = "langgraph", specifier = "==1.2.12" },
+    { name = "opentelemetry-instrumentation-fastapi", specifier = "==0.61b0" },
+    { name = "opentelemetry-instrumentation-httpx", specifier = "==0.61b0" },
+    { name = "opentelemetry-instrumentation-sqlalchemy", specifier = "==0.61b0" },
+    { name = "opentelemetry-instrumentation-system-metrics", specifier = "==0.61b0" },
+    { name = "pyodbc", specifier = "==5.3.0" },
+    { name = "python-dotenv", specifier = "==1.2.2" },
+    { name = "sqlalchemy", extras = ["asyncio"], specifier = "==2.0.54" },
+    { name = "structlog", specifier = "==26.1.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = "==0.49.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = "==9.0.3" },
+    { name = "pytest-cov", specifier = "==7.1.0" },
+    { name = "ruff", specifier = "==0.15.16" },
 ]
 
 [[package]]

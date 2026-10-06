@@ -39,7 +39,7 @@ yet** — `/v1/*` currently 404s.
 ```json
 {
   "service": "api",
-  "message": "hello from the AI Accelerator api service",
+  "message": "hello from the Team Assistant api service",
   "trace_id": "0c70…"
 }
 ```
@@ -77,7 +77,7 @@ No upstream call — the api is the end of the hop.
 
 Field notes (`apps/api/app/routes.py`):
 
-- `version` — `importlib.metadata.version("ai-accelerator-api")` (the dist name from
+- `version` — `importlib.metadata.version("team-assistant-api")` (the dist name from
   `pyproject.toml`); falls back to `"unknown"` if the package metadata isn't installed.
 - `env` — `APP_ENV` lowercased, default `"local"`.
 - `uptime_seconds` — `time.monotonic() - _STARTED` (captured at module import), rounded to 3

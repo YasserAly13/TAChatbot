@@ -1,5 +1,5 @@
 # =============================================================================
-# AI Accelerator — full stack.
+# Team Assistant — full stack.
 #   web (Next.js BFF, :3000) -> api (FastAPI + SQLAlchemy 2 async, :8000)
 #
 # Each service builds from its own per-app Dockerfile/context (also buildable
@@ -11,17 +11,17 @@
 # Variable substitution (${VAR}) reads the root .env (copy from .env.example).
 # Leave APPLICATIONINSIGHTS_CONNECTION_STRING empty to run in degraded mode.
 # =============================================================================
-name: ai-accelerator
+name: team-assistant
 
 services:
   api:
     build:
       context: ./apps/api
-    image: ai-accelerator-api
+    image: team-assistant-api
     environment:
       APP_ENV: ${APP_ENV:-local}
       PORT: 8000
-      OTEL_SERVICE_NAME: ai-accelerator-api
+      OTEL_SERVICE_NAME: team-assistant-api
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
       # Fixed-percentage trace sampling, 0..1 (empty = 1.0; see .env.example).
       TRACE_SAMPLING_RATIO: ${TRACE_SAMPLING_RATIO:-}
@@ -68,11 +68,11 @@ services:
   web:
     build:
       context: ./apps/web
-    image: ai-accelerator-web
+    image: team-assistant-web
     environment:
       APP_ENV: ${APP_ENV:-local}
       PORT: 3000
-      OTEL_SERVICE_NAME: ai-accelerator-web
+      OTEL_SERVICE_NAME: team-assistant-web
       APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING:-}
       # Fixed-percentage trace sampling, 0..1 (empty = 1.0; see .env.example).
       TRACE_SAMPLING_RATIO: ${TRACE_SAMPLING_RATIO:-}

@@ -1,6 +1,6 @@
 # System overview
 
-The AI Accelerator is the brandless **starter template / accelerator** that the [Diriyah Company](https://www.diriyahcompany.sa/en/)
+The Team Assistant is the brandless **starter template / accelerator** that the [Diriyah Company](https://www.diriyahcompany.sa/en/)
 AI team uses for its AI projects, built and maintained by [Orion Digital Solutions](https://www.orion360.com/). A project clones it,
 renames the placeholders, and builds features on a foundation that already works end to end.
 
@@ -55,7 +55,7 @@ outbound from the platform.
 flowchart LR
     user(["Browser user"])
 
-    subgraph platform["AI Accelerator platform"]
+    subgraph platform["Team Assistant platform"]
         web["apps/web<br/>Next.js BFF + UI"]
         py["apps/api<br/>FastAPI"]
     end
@@ -121,8 +121,8 @@ flowchart TB
 
 | App        | Stack                                                        | Port | Trace origin | OTel service name (cloud role) |
 | ---------- | ------------------------------------------------------------ | ---- | ------------ | ------------------------------ |
-| `apps/web` | Next.js 16.2.6 (App Router), BFF + UI                        | 3000 | `0eb0`       | `ai-accelerator-web`           |
-| `apps/api` | Python 3.14 + FastAPI + SQLAlchemy 2 async + Alembic, via uv | 8000 | `0c70`       | `ai-accelerator-api`           |
+| `apps/web` | Next.js 16.2.6 (App Router), BFF + UI                        | 3000 | `0eb0`       | `team-assistant-web`           |
+| `apps/api` | Python 3.14 + FastAPI + SQLAlchemy 2 async + Alembic, via uv | 8000 | `0c70`       | `team-assistant-api`           |
 
 Package managers: pnpm `11.5.2` for `web`, uv for `api`. Node **24** is pinned across
 `.nvmrc`, the web Dockerfile, and its `engines` field. Both services are at version `0.0.0` and
