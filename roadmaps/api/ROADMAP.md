@@ -105,7 +105,7 @@ migrations are applied by Yasser Aly from a developer machine.
 
 ### 3.1 — Document titles in the index and `[{title, path}]` sources
 
-- **status:** todo
+- **status:** done
 - **depends_on:** []
 - **layers:** [ai]
 - **acceptance:**
@@ -113,10 +113,19 @@ migrations are applied by Yasser Aly from a developer machine.
   - retrieval returns `title` with each chunk; `unique_sources` and the streaming `sources` / `done` frames carry `[{ "title", "path" }]` instead of a list of paths (B8 #7)
   - no retrieved text or titles in logs, spans or metrics
 - **how_to_test:**
+  - `cd apps/api; uv run pytest` → 283 passed (`tests/ai/` covers titles, code-block/front-matter skipping, folder-relative paths, the symlink skip, `[{title, path}]` frames, machine-path redaction and the old-index fallback; `tests/evals/` passes with the new shape)
+  - count what the index holds now (see needs_human) — `0` or a number
+  - after the re-index: the ingest prints `documents=N chunks=M uploaded=M failed=0`; in the Azure portal → Search service → Indexes → `team-assistant-docs` → Fields, `title` is listed; Search explorer with `search=*&$select=title,source&$top=3` shows titles like `Architecture — living document` and sources like `docs/architecture/ARCHITECTURE.md`
 - **needs_human:**
-  - re-index the corpus against dev: `uv run --directory apps/api python -m app.ai.ingest ../../docs`
+  - **check whether the index already holds documents** from an earlier ingest (count command in the hand-over). If it does, **delete the `team-assistant-docs` index in the Azure portal first** (a delete — yours, not an agent's): the old chunks keep their old ids and `../../docs/…` paths and would show as duplicate citations. The ingest recreates the index.
+  - re-index the corpus against dev: `cd apps/api; uv run python -m app.ai.ingest ../../docs` (ensure_index adds `title`, then uploads)
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`; changes the template's stream frame shape — the web `/chat` items consume the new shape
+  - 2026-10-06 — started by Claude
+  - 2026-10-06 — implemented; awaiting test by Yasser Aly. Files: `app/ai/tools/retrieve.py` (`title` selected, `chunk_title` fallback, one-time fallback when the index has no `title`), `app/ai/ingest.py` (`extract_title`, folder-relative `display_path`, outside-folder files skipped, searchable `title` field), `app/ai/graph.py` (`Source`, `unique_sources` → `[{title, path}]`, `client_path` redaction), `app/ai/streaming.py`; tests in `tests/ai/`, `tests/evals/cases.json`; `docs/architecture/ai.md`; api 0.6.0 → 0.7.0 + changelog. The model's context block (`format_context`) is unchanged — not a prompt change. Reviews: code-reviewer + security-reviewer, nothing blocking; applied: old-index fallback (else every question 400s until the re-index), code-block/front-matter titles, symlink skip, machine-path redaction, `Source` declared before `Answer`. Web chat components render sources as text (no raw HTML, no links) — checked
+  - 2026-10-06 — fix during test: the ingest CLI did not load `apps/api/.env` (`AINotConfigured` although `.env` was set) — `main()` now calls `load_local_env()`, with a test. The index did not exist yet, so no delete was needed
+  - 2026-10-06 — confirmed by Yasser Aly: ingest ran against dev, the index count matches the upload
+  - 2026-10-06 — for the web roadmap: `apps/web/src/lib/chat-client.ts`, `components/chat/types.ts` and `ChatThread.tsx` still type sources as `string[]`; they move to `{title, path}` with the `/chat` items (render as text; key by `path`)
 
 ### 3.2 — Ingest endpoint (api only)
 

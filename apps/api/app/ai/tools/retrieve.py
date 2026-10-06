@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, Protocol, TypedDict
+from pathlib import PurePosixPath
+from typing import Any, NotRequired, Protocol, TypedDict
 
 from langchain_core.embeddings import Embeddings
 
@@ -28,6 +29,7 @@ from app.logging_config import get_logger
 ID_FIELD = "id"
 CONTENT_FIELD = "content"
 SOURCE_FIELD = "source"
+TITLE_FIELD = "title"
 VECTOR_FIELD = "content_vector"
 DEFAULT_TOP_K = 5
 
@@ -36,7 +38,15 @@ class RetrievedChunk(TypedDict):
     id: str
     content: str
     source: str
+    # The document's title (its first "# " heading, else the file name — set by ingest.py).
+    title: NotRequired[str]
     score: float | None
+
+
+def chunk_title(chunk: RetrievedChunk) -> str:
+    """The chunk's title, falling back to the file name of its source — for documents ingested
+    before the title field existed, and for retrievers that do not set one."""
+    return chunk.get("title") or PurePosixPath(chunk.get("source") or "").name
 
 
 class Retriever(Protocol):
@@ -87,6 +97,7 @@ class AzureSearchRetriever:
         id_field: str = ID_FIELD,
         content_field: str = CONTENT_FIELD,
         source_field: str = SOURCE_FIELD,
+        title_field: str = TITLE_FIELD,
         vector_field: str = VECTOR_FIELD,
     ) -> None:
         self._client = search_client
@@ -94,20 +105,41 @@ class AzureSearchRetriever:
         self._id_field = id_field
         self._content_field = content_field
         self._source_field = source_field
+        self._title_field = title_field
         self._vector_field = vector_field
+        self._select_title = True  # switched off once if the index predates the title field
 
     def _search(self, query: str, vector: list[float], top_k: int) -> list[dict[str, Any]]:
+        from azure.core.exceptions import HttpResponseError
         from azure.search.documents.models import VectorizedQuery
 
-        results = self._client.search(
-            search_text=query,
-            vector_queries=[
-                VectorizedQuery(vector=vector, k_nearest_neighbors=top_k, fields=self._vector_field)
-            ],
-            select=[self._id_field, self._content_field, self._source_field],
-            top=top_k,
-        )
-        return [dict(r) for r in results]
+        select = [self._id_field, self._content_field, self._source_field]
+        if self._select_title:
+            select.append(self._title_field)
+        try:
+            results = self._client.search(
+                search_text=query,
+                vector_queries=[
+                    VectorizedQuery(
+                        vector=vector, k_nearest_neighbors=top_k, fields=self._vector_field
+                    )
+                ],
+                select=select,
+                top=top_k,
+            )
+            return [dict(r) for r in results]
+        except HttpResponseError as exc:
+            # An index built before the title field existed rejects `select=title` with a 400
+            # until the ingest job (ensure_index) adds it. Keep answering — titles fall back to
+            # file names — instead of failing every question until someone re-indexes.
+            if not self._select_title or exc.status_code != 400:
+                raise
+            self._select_title = False
+            get_logger("app.ai.retrieve").warning(
+                "search index has no title field; retrieving without it until re-indexed",
+                reason="index_missing_title_field",
+            )
+            return self._search(query, vector, top_k)
 
     async def retrieve(self, query: str, top_k: int = DEFAULT_TOP_K) -> list[RetrievedChunk]:
         started = time.perf_counter()
@@ -117,15 +149,16 @@ class AzureSearchRetriever:
         except Exception:
             record_retrieval((time.perf_counter() - started) * 1000, "error")
             raise
-        chunks: list[RetrievedChunk] = [
-            {
+        chunks: list[RetrievedChunk] = []
+        for r in raw:
+            chunk: RetrievedChunk = {
                 "id": str(r.get(self._id_field, "")),
                 "content": str(r.get(self._content_field, "")),
                 "source": str(r.get(self._source_field, "")),
                 "score": r.get("@search.score"),
             }
-            for r in raw
-        ]
+            chunk["title"] = str(r.get(self._title_field) or "") or chunk_title(chunk)
+            chunks.append(chunk)
         record_retrieval((time.perf_counter() - started) * 1000, "ok", hits=len(chunks))
         return chunks
 

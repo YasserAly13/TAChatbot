@@ -51,7 +51,10 @@ def test_ask_runs_retrieval_then_model_and_collects_sources() -> None:
     answer = asyncio.run(ask(graph, "which port?"))
     assert answer.text == "Port 8000 [1]."
     assert retriever.calls == [("which port?", 2)]
-    assert answer.sources == ["docs/api.md", "docs/web.md"]
+    assert answer.sources == [
+        {"title": "api.md", "path": "docs/api.md"},  # no stored title: the file name
+        {"title": "web.md", "path": "docs/web.md"},
+    ]
     assert answer.input_tokens == 10 and answer.output_tokens == 5
 
 
@@ -113,11 +116,11 @@ def test_stream_answer_yields_sources_tokens_done() -> None:
     events = _collect(asyncio.run(run()))
     kinds = [e for e, _ in events]
     assert kinds[0] == "sources"
-    assert events[0][1] == {"sources": ["docs/api.md"], "count": 1}
+    assert events[0][1] == {"sources": [{"title": "api.md", "path": "docs/api.md"}], "count": 1}
     assert kinds[-1] == "done"
     tokens = "".join(d["text"] for e, d in events if e == "token")
     assert tokens == "alpha beta"
-    assert events[-1][1]["sources"] == ["docs/api.md"]
+    assert events[-1][1]["sources"] == [{"title": "api.md", "path": "docs/api.md"}]
     # Usage is provider-reported; a streaming fake aggregates chunks without it, so the
     # contract is "the keys are present, values may be None".
     assert set(events[-1][1]) == {"sources", "input_tokens", "output_tokens"}
@@ -145,3 +148,35 @@ def test_sse_response_headers() -> None:
     response = sse_response(frames())
     assert response.media_type == "text/event-stream"
     assert response.headers["cache-control"] == "no-cache"
+
+
+def test_unique_sources_dedupes_by_path_and_keeps_the_first_title() -> None:
+    from app.ai.graph import unique_sources
+
+    chunks = [
+        {"id": "1", "content": "x", "source": "docs/a.md", "title": "Alpha", "score": 1.0},
+        {"id": "2", "content": "y", "source": "docs/b.md", "score": 0.9},
+        {"id": "3", "content": "z", "source": "docs/a.md", "title": "Other", "score": 0.8},
+        {"id": "4", "content": "w", "source": "", "score": 0.7},
+    ]
+    assert unique_sources(chunks) == [  # type: ignore[arg-type]
+        {"title": "Alpha", "path": "docs/a.md"},
+        {"title": "b.md", "path": "docs/b.md"},
+    ]
+
+
+@pytest.mark.parametrize(
+    ("stored", "shown"),
+    [
+        ("docs/a.md", "docs/a.md"),
+        ("C:/Users/someone/repo/docs/a.md", "a.md"),
+        ("../../docs/a.md", "a.md"),
+        ("/home/someone/docs/a.md", "a.md"),
+        (r"docs\windows\a.md", "a.md"),
+    ],
+)
+def test_sources_never_expose_a_machine_path(stored: str, shown: str) -> None:
+    from app.ai.graph import unique_sources
+
+    chunks = [{"id": "1", "content": "x", "source": stored, "title": "A", "score": 1.0}]
+    assert unique_sources(chunks) == [{"title": "A", "path": shown}]  # type: ignore[arg-type]
