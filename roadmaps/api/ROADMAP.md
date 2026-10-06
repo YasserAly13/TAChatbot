@@ -46,12 +46,13 @@ migrations are applied by Yasser Aly from a developer machine.
   - read and accept the accepted-risk list
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`; required before 3.2 (an unauthenticated trigger)
+  - 2026-10-06 — from the 2.1 security review, also cover: unauthenticated `POST /v1/conversations` with no rate limit or row cap, and no request-body size cap (memory/CPU before a 422) — accepted while local-only (ADR-0013), HIGH if ever exposed
 
 ## Phase 2 — Conversations (F2)
 
 ### 2.1 — Create and list conversations
 
-- **status:** todo
+- **status:** done
 - **depends_on:** [1.1]
 - **layers:** [endpoint]
 - **acceptance:**
@@ -60,10 +61,21 @@ migrations are applied by Yasser Aly from a developer machine.
   - bad input → `422 validation_error`; every response echoes `x-trace-id`; errors use `{ error, trace_id }`
   - a conversation repository (create, list, get, add message, rename, touch `updated_at`) used through `Depends(get_session)`; no titles or ids in logs or metric attributes
 - **how_to_test:**
-- **needs_human:** []
+  - `just test` → api 247 passed, web 136 passed (`apps/api/tests/test_conversations.py` — 30 cases)
+  - `just dev` (or `cd apps/api; uv run uvicorn app.main:app --port 8000`), then in another terminal:
+  - PowerShell: `Invoke-RestMethod -Method Post http://localhost:8000/v1/conversations -ContentType application/json -Body '{"title":"Smoke test"}'` → `id`, `title: Smoke test`, `created_at`/`updated_at` ending in `Z`
+  - `Invoke-RestMethod -Method Post http://localhost:8000/v1/conversations` → `title: New conversation`
+  - `(Invoke-RestMethod "http://localhost:8000/v1/conversations?limit=5").items` → the two conversations, newest first
+  - `Invoke-WebRequest "http://localhost:8000/v1/conversations?limit=0" -SkipHttpErrorCheck` (PowerShell 7) or open the URL in a browser → `422` `{"error":"validation_error","trace_id":"0c70…"}`
+  - `http://localhost:8000/docs` shows both operations under **conversations**
+- **needs_human:**
+  - the smoke test above writes real rows to the dev database (two test conversations stay — there is no delete, B8 #6)
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`; tests use a fake session, so authoring does not wait for the migration to be applied
   - 2026-10-06 — from the 1.1 review: `DATETIME2` values come back naive (they are UTC) — attach UTC so responses serialise with `Z`; nothing bumps `updated_at` automatically — the repository must, with a test; relationships are `lazy="raise"` (use `selectinload`)
+  - 2026-10-06 — started by Claude
+  - 2026-10-06 — implemented; awaiting test by Yasser Aly. Files: `app/routers/conversations.py`, `app/repositories/{__init__,conversations}.py`, `tests/test_conversations.py` (new); `app/routers/v1.py`; `docs/reference/{openapi.json,http-api.md}`, `apps/web/src/lib/api-types.ts` (generated); root + api `CLAUDE.md`; api 0.4.0 → 0.5.0 + `CHANGELOG.md`. `count` = items in the response, not a total. Reviews: code-reviewer + security-reviewer, nothing blocking; applied: titles measured in UTF-16 units (an emoji counts 2, so 101 emoji no longer overflow `NVARCHAR(200)` as a 500), trimmed before the length check, control characters rejected, `rename` never splits an emoji, `add_message` rejects unknown roles, `Z` assertion tightened. Deferred to 1.2: rate limit / row cap / body-size cap
+  - 2026-10-06 — confirmed by Yasser Aly: tests and the dev smoke test passed
 
 ### 2.2 — Read one conversation with its messages
 
@@ -76,6 +88,7 @@ migrations are applied by Yasser Aly from a developer machine.
 - **how_to_test:**
 - **needs_human:** []
 - **notes:**
+  - 2026-10-06 — from the 2.1 reviews: check that the request metric still uses the route template (`/v1/conversations/{conversation_id}`) and that no conversation id lands in log fields or span attributes beyond the framework's URL
   - 2026-10-06 — planned by `/plan-roadmap api`
 
 ## Phase 3 — Knowledge base (F3)

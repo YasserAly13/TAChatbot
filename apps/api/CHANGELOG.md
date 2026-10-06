@@ -7,6 +7,21 @@ The two services version independently.
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-10-06
+
+### Added
+
+- **`POST /v1/conversations`** — start a conversation; optional `{ "title" }` (trimmed; at most
+  200 UTF-16 units — an emoji counts 2 — so it always fits `NVARCHAR(200)`; no control
+  characters; blank → "New conversation"); `201 { id, title, created_at, updated_at }`
+  (roadmap api 2.1).
+- **`GET /v1/conversations?limit=50`** (1–100) — `{ items: [{ id, title, updated_at }], count }`,
+  most recently updated first.
+- **Conversation repository** (`app/repositories/conversations.py`): create, list, get, add
+  message (bumps `updated_at`), rename, touch — used through `Depends(get_session)`.
+- Timestamps in responses are UTC with an explicit `Z`. `docs/reference/openapi.json` and the
+  web's generated `api-types.ts` regenerated.
+
 ## [0.4.0] — 2026-10-06
 
 ### Added

@@ -67,10 +67,104 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/v1/conversations': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Conversations
+     * @description Conversations, most recently updated first.
+     */
+    get: operations['list_conversations_v1_conversations_get'];
+    put?: never;
+    /**
+     * Create Conversation
+     * @description Start a conversation. The body is optional.
+     */
+    post: operations['create_conversation_v1_conversations_post'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: never;
+  schemas: {
+    /** ConversationCreate */
+    ConversationCreate: {
+      /**
+       * Title
+       * @description Optional; missing or blank becomes "New conversation". At most 200 UTF-16 units after trimming (an emoji counts 2); no control characters.
+       */
+      title?: string | null;
+    };
+    /** ConversationList */
+    ConversationList: {
+      /**
+       * Count
+       * @description Number of items in this response (at most `limit`).
+       */
+      count: number;
+      /** Items */
+      items: components['schemas']['ConversationSummary'][];
+    };
+    /** ConversationOut */
+    ConversationOut: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /** ConversationSummary */
+    ConversationSummary: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Title */
+      title: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * ErrorBody
+     * @description The one error shape every api response uses.
+     */
+    ErrorBody: {
+      /**
+       * Error
+       * @description Stable snake_case code, e.g. not_found, validation_error.
+       */
+      error: string;
+      /**
+       * Trace Id
+       * @description The request's trace id — the same value as the x-trace-id header.
+       */
+      trace_id: string;
+    };
+  };
   responses: never;
   parameters: never;
   requestBodies: never;
@@ -141,6 +235,88 @@ export interface operations {
           'application/json': {
             [key: string]: string;
           };
+        };
+      };
+    };
+  };
+  list_conversations_v1_conversations_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConversationList'];
+        };
+      };
+      /** @description Validation failed (`validation_error`) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+      /** @description Unhandled error (`internal_error`) */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+    };
+  };
+  create_conversation_v1_conversations_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['ConversationCreate'] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ConversationOut'];
+        };
+      };
+      /** @description Validation failed (`validation_error`) */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
+        };
+      };
+      /** @description Unhandled error (`internal_error`) */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ErrorBody'];
         };
       };
     };

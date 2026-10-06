@@ -1,6 +1,6 @@
 [project]
 name = "team-assistant-api"
-version = "0.4.0"
+version = "0.5.0"
 description = "Team Assistant — Python (FastAPI) backend. Part of the brandless starter template built by Orion Digital Solutions for the Diriyah Company AI team."
 authors = [{ name = "Orion Digital Solutions" }]
 maintainers = [{ name = "Orion Digital Solutions" }]

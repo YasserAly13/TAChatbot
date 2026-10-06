@@ -1,4 +1,111 @@
 {
+  "components": {
+    "schemas": {
+      "ConversationCreate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional; missing or blank becomes \"New conversation\". At most 200 UTF-16 units after trimming (an emoji counts 2); no control characters.",
+            "title": "Title"
+          }
+        },
+        "title": "ConversationCreate",
+        "type": "object"
+      },
+      "ConversationList": {
+        "properties": {
+          "count": {
+            "description": "Number of items in this response (at most `limit`).",
+            "title": "Count",
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": ["items", "count"],
+        "title": "ConversationList",
+        "type": "object"
+      },
+      "ConversationOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "created_at", "updated_at"],
+        "title": "ConversationOut",
+        "type": "object"
+      },
+      "ConversationSummary": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "updated_at"],
+        "title": "ConversationSummary",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "description": "The one error shape every api response uses.",
+        "properties": {
+          "error": {
+            "description": "Stable snake_case code, e.g. not_found, validation_error.",
+            "title": "Error",
+            "type": "string"
+          },
+          "trace_id": {
+            "description": "The request's trace id — the same value as the x-trace-id header.",
+            "title": "Trace Id",
+            "type": "string"
+          }
+        },
+        "required": ["error", "trace_id"],
+        "title": "ErrorBody",
+        "type": "object"
+      }
+    }
+  },
   "info": {
     "title": "Team Assistant — api",
     "version": "0.0.0"
@@ -70,6 +177,115 @@
           }
         },
         "summary": "Ping"
+      }
+    },
+    "/v1/conversations": {
+      "get": {
+        "description": "Conversations, most recently updated first.",
+        "operationId": "list_conversations_v1_conversations_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Validation failed (`validation_error`)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unhandled error (`internal_error`)"
+          }
+        },
+        "summary": "List Conversations",
+        "tags": ["conversations"]
+      },
+      "post": {
+        "description": "Start a conversation. The body is optional.",
+        "operationId": "create_conversation_v1_conversations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ConversationCreate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Validation failed (`validation_error`)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unhandled error (`internal_error`)"
+          }
+        },
+        "summary": "Create Conversation",
+        "tags": ["conversations"]
       }
     }
   }
