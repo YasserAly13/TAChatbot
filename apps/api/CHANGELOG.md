@@ -7,6 +7,30 @@ The two services version independently.
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-10-06
+
+### Changed
+
+- **Sources are `[{title, path}]`** (roadmap api 3.1, B8 #7): `Answer.sources` and the SSE
+  `sources` / `done` frames carry one `{title, path}` per cited document instead of a list of
+  paths. No `/v1` route streams yet, so no consumer breaks; the web chat components still
+  expect strings and change with the web roadmap.
+- **Ingestion** stores a searchable `title` per chunk (the first `# ` heading, else the file
+  name) and stores `source` relative to the ingested folder's parent — `ingest ../../docs`
+  stores `docs/README.md`, not `../../docs/README.md`.
+
+### Added
+
+- Index field `title` (`build_index`); `ensure_index` adds it to an existing index in place.
+  Retrieval selects it and falls back to the source's file name for chunks indexed before it
+  existed; against an index that does not have the field yet, the first `select=title` 400 is
+  caught once and retrieval continues without it (no outage before the re-index).
+- Fixed: `python -m app.ai.ingest` now loads `apps/api/.env` like `app.main` (it failed with
+  `AINotConfigured` on a developer machine even when `.env` had the search settings).
+- Hardening: titles ignore `# ` lines in fenced code and YAML front matter; files that resolve
+  outside the ingested folder (symlinks) are skipped; a stored source that could expose a
+  machine path (absolute, drive letter, `..`, backslashes) reaches clients as its file name.
+
 ## [0.6.0] — 2026-10-06
 
 ### Added

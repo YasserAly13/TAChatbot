@@ -17,8 +17,10 @@ Shape a project copies for its own graphs:
 
 from __future__ import annotations
 
+import re
 import time
 from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 from typing import Annotated, Any, TypedDict
 
 from langchain_core.language_models import BaseChatModel
@@ -31,7 +33,13 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from app.ai.config import get_ai_settings
 from app.ai.prompts import render_prompt
 from app.ai.telemetry import extract_usage, model_call_span, record_retrieval
-from app.ai.tools.retrieve import DEFAULT_TOP_K, RetrievedChunk, Retriever, get_default_retriever
+from app.ai.tools.retrieve import (
+    DEFAULT_TOP_K,
+    RetrievedChunk,
+    Retriever,
+    chunk_title,
+    get_default_retriever,
+)
 
 
 class GraphState(TypedDict, total=False):
@@ -125,22 +133,47 @@ def build_graph(
     return graph.compile()
 
 
+class Source(TypedDict):
+    """A cited document: what the ``sources``/``done`` frames and ``Answer.sources`` carry."""
+
+    title: str
+    path: str
+
+
 @dataclass
 class Answer:
     text: str
-    sources: list[str] = field(default_factory=list)
+    sources: list[Source] = field(default_factory=list)
     context: list[RetrievedChunk] = field(default_factory=list)
     input_tokens: int | None = None
     output_tokens: int | None = None
 
 
-def unique_sources(chunks: list[RetrievedChunk]) -> list[str]:
-    seen: list[str] = []
+_DRIVE = re.compile(r"^[A-Za-z]:")
+
+
+def client_path(source: str) -> str:
+    """The path a client may see. A relative corpus path passes through; anything that could
+    expose the ingesting machine — absolute, a drive letter, ``..``, backslashes (left in an
+    index by an older ingest) — is reduced to its file name."""
+    if (
+        source.startswith(("/", "\\"))
+        or _DRIVE.match(source)
+        or "\\" in source
+        or ".." in PurePosixPath(source).parts
+    ):
+        return PurePosixPath(source.replace("\\", "/")).name
+    return source
+
+
+def unique_sources(chunks: list[RetrievedChunk]) -> list[Source]:
+    """One entry per document, in retrieval order (a document's first chunk wins)."""
+    seen: dict[str, Source] = {}
     for c in chunks:
-        source = c.get("source") or ""
-        if source and source not in seen:
-            seen.append(source)
-    return seen
+        path = client_path(c.get("source") or "")
+        if path and path not in seen:
+            seen[path] = {"title": chunk_title(c), "path": path}
+    return list(seen.values())
 
 
 async def ask(

@@ -1,9 +1,11 @@
 """RAG ingestion job (ADR-0009): load → chunk → embed → upload to Azure AI Search.
 
 Owns the **index definition** (``build_index``) so the retriever and the index never drift:
-fields ``id`` (key), ``content`` (searchable), ``source`` (filterable), ``chunk_index``, and
-``content_vector`` (HNSW vector profile, ``AZURE_AI_EMBEDDING_DIMENSIONS`` wide). ``ensure_index``
-is idempotent (``create_or_update_index``).
+fields ``id`` (key), ``content`` (searchable), ``source`` (filterable — the path a citation
+shows, relative to the ingested folder's parent), ``title`` (searchable — the document's first
+``# `` heading, else its file name), ``chunk_index``, and ``content_vector`` (HNSW vector profile,
+``AZURE_AI_EMBEDDING_DIMENSIONS`` wide). ``ensure_index`` is idempotent
+(``create_or_update_index``) and adds new fields to an existing index in place.
 
 Run it from ``apps/api`` (needs the AI + search settings; the api identity or a dev key with
 *Search Index Data Contributor* + *Search Service Contributor*)::
@@ -24,7 +26,7 @@ import hashlib
 import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from langchain_core.embeddings import Embeddings
@@ -34,10 +36,12 @@ from app.ai.tools.retrieve import (
     CONTENT_FIELD,
     ID_FIELD,
     SOURCE_FIELD,
+    TITLE_FIELD,
     VECTOR_FIELD,
     build_search_client,
     build_search_credential,
 )
+from app.config import load_local_env
 from app.logging_config import configure_logging, get_logger
 
 CHUNK_INDEX_FIELD = "chunk_index"
@@ -52,6 +56,33 @@ TEXT_SUFFIXES = (".md", ".txt")
 class IngestDocument:
     source: str
     text: str
+    title: str = ""
+
+
+TITLE_MAX_LENGTH = 200
+
+
+def extract_title(text: str, source: str) -> str:
+    """The first ``# `` (level-1 Markdown) heading, else the file name — what a citation shows.
+
+    Lines inside fenced code blocks (a shell ``# comment``) and a leading YAML front-matter
+    block are not headings and are skipped.
+    """
+    lines = text.splitlines()
+    start = 0
+    if lines and lines[0].strip() == "---":  # front matter: skip to its closing ---
+        closing = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), None)
+        start = closing + 1 if closing is not None else 0
+    fence: str | None = None
+    for line in lines[start:]:
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            marker = stripped[:3]
+            fence = None if fence == marker else (fence or marker)
+            continue
+        if fence is None and stripped.startswith("# ") and stripped[2:].strip():
+            return stripped[2:].strip()[:TITLE_MAX_LENGTH]
+    return PurePosixPath(source).name
 
 
 @dataclass
@@ -106,6 +137,9 @@ def build_index(name: str, dimensions: int) -> Any:
         SimpleField(name=ID_FIELD, type=SearchFieldDataType.String, key=True, filterable=True),
         SearchableField(name=CONTENT_FIELD),
         SimpleField(name=SOURCE_FIELD, type=SearchFieldDataType.String, filterable=True),
+        # Added after the first release: create_or_update_index adds a new field to an existing
+        # index in place (Azure AI Search allows adding fields, not changing them).
+        SearchableField(name=TITLE_FIELD),
         SimpleField(
             name=CHUNK_INDEX_FIELD, type=SearchFieldDataType.Int32, filterable=True, sortable=True
         ),
@@ -139,8 +173,23 @@ def ensure_index(index_client: Any, index: Any) -> Any:
     return index_client.create_or_update_index(index)
 
 
+def display_path(file: Path, root: Path) -> str | None:
+    """The path a citation shows: relative to the ingested folder's parent, so ingesting
+    ``../../docs`` stores ``docs/architecture/ai.md`` (not ``../../docs/…``); a single file
+    stores its name. ``None`` when the file resolves outside ``root`` (a symlink pointing
+    elsewhere) — such a file is not ingested, so nothing outside the corpus is indexed."""
+    if file.resolve() == root.resolve():  # ingesting a single file
+        return file.name
+    try:
+        file.resolve().relative_to(root.resolve())
+    except ValueError:
+        return None
+    return file.resolve().relative_to(root.resolve().parent).as_posix()
+
+
 def load_path(path: Path) -> list[IngestDocument]:
-    """Every ``.md``/``.txt`` file under ``path`` (or the file itself) as a document."""
+    """Every ``.md``/``.txt`` file under ``path`` (or the file itself) as a document. Files
+    that resolve outside ``path`` (symlinks) are skipped."""
     files = (
         [path]
         if path.is_file()
@@ -150,7 +199,14 @@ def load_path(path: Path) -> list[IngestDocument]:
     for file in files:
         if file.suffix.lower() not in TEXT_SUFFIXES:
             continue
-        docs.append(IngestDocument(source=file.as_posix(), text=file.read_text(encoding="utf-8")))
+        source = display_path(file, path)
+        if source is None:
+            get_logger("app.ai.ingest").warning(
+                "skipped a file outside the ingested folder", reason="outside_root"
+            )
+            continue
+        text = file.read_text(encoding="utf-8")
+        docs.append(IngestDocument(source=source, text=text, title=extract_title(text, source)))
     return docs
 
 
@@ -180,6 +236,7 @@ async def ingest_documents(
                     ID_FIELD: chunk_id(doc.source, i),
                     CONTENT_FIELD: piece,
                     SOURCE_FIELD: doc.source,
+                    TITLE_FIELD: doc.title or extract_title(doc.text, doc.source),
                     CHUNK_INDEX_FIELD: i,
                 }
             )
@@ -228,6 +285,9 @@ async def run(argv: Sequence[str] | None = None) -> IngestReport:
 
 
 def main() -> None:
+    # Same as app.main: apps/api/.env (if present) supplies the AI + search settings for a local
+    # run; ambient env always wins. Without it the CLI saw no settings at all.
+    load_local_env()
     configure_logging()
     report = asyncio.run(run(sys.argv[1:]))
     print(
