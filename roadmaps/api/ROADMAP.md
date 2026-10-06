@@ -47,6 +47,7 @@ migrations are applied by Yasser Aly from a developer machine.
 - **notes:**
   - 2026-10-06 — planned by `/plan-roadmap api`; required before 3.2 (an unauthenticated trigger)
   - 2026-10-06 — from the 2.1 security review, also cover: unauthenticated `POST /v1/conversations` with no rate limit or row cap, and no request-body size cap (memory/CPU before a 422) — accepted while local-only (ADR-0013), HIGH if ever exposed
+  - 2026-10-06 — from the 2.2 security review, also cover: `GET /v1/conversations/{id}` returns every message unpaginated (a long thread = a large response; bounded today by the 4,000-character question cap in 4.1 and model-length answers); the conversation id appears in the framework's request span URL and uvicorn's access log (reaches App Insights if the exporter is on) — decide redaction vs accepted risk
 
 ## Phase 2 — Conversations (F2)
 
@@ -79,17 +80,26 @@ migrations are applied by Yasser Aly from a developer machine.
 
 ### 2.2 — Read one conversation with its messages
 
-- **status:** todo
+- **status:** done
 - **depends_on:** [2.1]
 - **layers:** [endpoint]
 - **acceptance:**
   - `GET /v1/conversations/{id}` → `200` the conversation + `messages: [{ id, role, content, citations, created_at }]` oldest first, `citations` parsed as `[{title, path}]` or `null`
   - unknown id → `404 not_found`; malformed id → `422 validation_error`; `x-trace-id` echoed
 - **how_to_test:**
-- **needs_human:** []
+  - `cd apps/api; uv run pytest` → 259 passed (`tests/test_conversations.py` covers the read, 404, malformed ids, empty thread, bad stored citations, message order)
+  - `cd apps/web; pnpm test` → 136 passed (run on its own — see the note on the slow `MessageInput` test)
+  - start the api (`just dev`), then in PowerShell: `$c = Invoke-RestMethod -Method Post http://localhost:8000/v1/conversations -ContentType application/json -Body '{"title":"Read test"}'` and `Invoke-RestMethod "http://localhost:8000/v1/conversations/$($c.id)"` → `title: Read test`, `messages: {}` (empty — nothing can add messages until 4.1)
+  - browser: `http://localhost:8000/v1/conversations/00000000-0000-0000-0000-000000000000` → `{"error":"not_found","trace_id":"0c70…"}`; `…/v1/conversations/abc` → `{"error":"validation_error",…}`
+- **needs_human:**
+  - the smoke test writes one more test conversation to dev (no delete exists)
 - **notes:**
   - 2026-10-06 — from the 2.1 reviews: check that the request metric still uses the route template (`/v1/conversations/{conversation_id}`) and that no conversation id lands in log fields or span attributes beyond the framework's URL
   - 2026-10-06 — planned by `/plan-roadmap api`
+  - 2026-10-06 — started by Claude
+  - 2026-10-06 — implemented; awaiting test by Yasser Aly. Files: `app/routers/conversations.py` (route + `Citation`/`MessageOut`/`ConversationDetail`, module-level `MessageRole` alias — ruff stripped the quotes from an inline `Literal`), `app/repositories/conversations.py` (`get_conversation_with_messages`, strictly increasing `created_at` in `add_message`), `app/models/conversation.py` (order by `created_at, id`), `tests/test_conversations.py`, `tests/test_models.py`; `openapi.json` + web `api-types.ts` regenerated; `http-api.md`, root + api `CLAUDE.md`; api 0.5.0 → 0.6.0 + changelog. Metric uses the template (verified in `tracing.py`); this code logs no ids or content. Reviews: code-reviewer + security-reviewer, nothing blocking; applied: same-millisecond message order, role type pinned to `ROLES` by a test, content-free warning with a fixed reason. Deferred to 1.2: unpaginated thread size, id in framework URL logs. For the web layer: render citation `title`/`path` as text, never as HTML or an unchecked link
+  - 2026-10-06 — observed: the template web test `MessageInput.test.tsx` times out at Vitest's 5 s default when the machine is busy (e.g. right after `just fmt` + the api suite); 136/136 in isolation (4 runs). Not caused by this item; fixed separately by raising the web `testTimeout` to 15 s (`apps/web/vitest.config.ts`)
+  - 2026-10-06 — confirmed by Yasser Aly: tests and the dev smoke test passed
 
 ## Phase 3 — Knowledge base (F3)
 

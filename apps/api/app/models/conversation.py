@@ -54,8 +54,12 @@ class Conversation(Base):
 
     # lazy="raise": an implicit lazy load on an AsyncSession is a MissingGreenlet 500 — load
     # messages explicitly (selectinload) so a forgotten load fails loudly in tests instead.
+    # Oldest first. created_at is strictly increasing per conversation (the repository's
+    # add_message guarantees it); id only makes any legacy tie deterministic.
     messages: Mapped[list[Message]] = relationship(
-        back_populates="conversation", order_by="Message.created_at", lazy="raise"
+        back_populates="conversation",
+        order_by="(Message.created_at, Message.id)",
+        lazy="raise",
     )
 
 

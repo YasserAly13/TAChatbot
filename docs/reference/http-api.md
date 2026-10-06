@@ -13,16 +13,17 @@ removed in [ADR-0003](../adr/0003-remove-nestjs-api-layer.md).
 
 ## Route map
 
-| Method | Path                | Service          | Purpose                                              | Versioned?       |
-| ------ | ------------------- | ---------------- | ---------------------------------------------------- | ---------------- |
-| GET    | `/ping`             | `apps/api`       | Liveness greeting                                    | No (operational) |
-| GET    | `/info`             | `apps/api`       | Status/version/runtime report                        | No (operational) |
-| GET    | `/health`           | `apps/api`       | Health + observability state                         | No (operational) |
-| POST   | `/v1/conversations` | `apps/api`       | Start a conversation (F2)                            | Yes (`/v1`)      |
-| GET    | `/v1/conversations` | `apps/api`       | List conversations, most recently updated first (F2) | Yes (`/v1`)      |
-| GET    | `/api/ping-backend` | `apps/web` (BFF) | Proxies `apps/api` `/ping`                           | No (demo route)  |
-| GET    | `/api/info-backend` | `apps/web` (BFF) | Proxies `apps/api` `/info`                           | No (demo route)  |
-| GET    | `/health`           | `apps/web` (BFF) | Own health + observability state (no upstream call)  | No (operational) |
+| Method | Path                                  | Service          | Purpose                                              | Versioned?       |
+| ------ | ------------------------------------- | ---------------- | ---------------------------------------------------- | ---------------- |
+| GET    | `/ping`                               | `apps/api`       | Liveness greeting                                    | No (operational) |
+| GET    | `/info`                               | `apps/api`       | Status/version/runtime report                        | No (operational) |
+| GET    | `/health`                             | `apps/api`       | Health + observability state                         | No (operational) |
+| POST   | `/v1/conversations`                   | `apps/api`       | Start a conversation (F2)                            | Yes (`/v1`)      |
+| GET    | `/v1/conversations`                   | `apps/api`       | List conversations, most recently updated first (F2) | Yes (`/v1`)      |
+| GET    | `/v1/conversations/{conversation_id}` | `apps/api`       | One conversation with its messages (F2)              | Yes (`/v1`)      |
+| GET    | `/api/ping-backend`                   | `apps/web` (BFF) | Proxies `apps/api` `/ping`                           | No (demo route)  |
+| GET    | `/api/info-backend`                   | `apps/web` (BFF) | Proxies `apps/api` `/info`                           | No (demo route)  |
+| GET    | `/health`                             | `apps/web` (BFF) | Own health + observability state (no upstream call)  | No (operational) |
 
 Business endpoints are `/v1/<feature>` on the api (routers attached to `v1_router`) and
 `/api/v1/<feature>` on web (folder-enforced). See [Versioning](#versioning). The full planned
@@ -38,12 +39,14 @@ The machine-readable contract is [`openapi.json`](openapi.json) (`just openapi`)
 
 ### `POST /v1/conversations`
 
-Starts a conversation. Body optional: `{ "title"?: string }` (≤ 200 characters); a missing or
-blank title becomes `"New conversation"`.
+Starts a conversation. Body optional: `{ "title"?: string }` — trimmed, at most 200 UTF-16 units
+(an emoji counts 2, so it always fits the column), no control characters; a missing or blank
+title becomes `"New conversation"`.
 
 - `201` → `{ "id": uuid, "title": string, "created_at": datetime, "updated_at": datetime }`
   (UTC, ISO 8601 with `Z`)
-- `422 validation_error` → title too long or not a string, body not an object
+- `422 validation_error` → title too long, not a string or with control characters; body not an
+  object
 
 ### `GET /v1/conversations?limit=50`
 
@@ -51,6 +54,17 @@ Conversations, most recently updated first (ties broken by id). `limit` 1–100,
 
 - `200` → `{ "items": [{ "id", "title", "updated_at" }], "count": <items in this response> }`
 - `422 validation_error` → `limit` outside 1–100 or not an integer
+
+### `GET /v1/conversations/{conversation_id}`
+
+One conversation with its messages, oldest first.
+
+- `200` → the conversation fields above plus
+  `"messages": [{ "id", "role": "user" | "assistant", "content", "citations", "created_at" }]`;
+  `citations` is `[{ "title", "path" }]` on assistant answers, `null` on user messages (and on a
+  stored value that is not that shape — logged as a kind, never the text)
+- `404 not_found` → no conversation with that id
+- `422 validation_error` → the id is not a UUID
 
 Conversations are shared — no owner until auth lands (ADR-0014).
 

@@ -10,17 +10,19 @@ from __future__ import annotations
 import asyncio
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, get_args
 from uuid import UUID, uuid4
 
 import pytest
+import structlog.testing
 from fastapi.testclient import TestClient
 from sqlalchemy.dialects import mssql
 
 from app.db import get_session
 from app.main import app
-from app.models.conversation import DEFAULT_TITLE, Conversation, Message
+from app.models.conversation import DEFAULT_TITLE, ROLES, Conversation, Message
 from app.repositories import conversations as repo
+from app.routers.conversations import MessageRole
 
 INBOUND_TRACE = "0eb01" + "a" * 27
 EMOJI = "\U0001f600"  # one character, two UTF-16 units
@@ -35,6 +37,9 @@ class FakeResult:
 
     def all(self) -> list[Any]:
         return list(self._rows)
+
+    def first(self) -> Any:
+        return self._rows[0] if self._rows else None
 
 
 class FakeSession:
@@ -302,3 +307,132 @@ def test_get_returns_none_for_an_unknown_id() -> None:
 
     assert asyncio.run(repo.get_conversation(session, uuid4())) is None  # type: ignore[arg-type]
     assert asyncio.run(repo.get_conversation(session, known.id)) is known  # type: ignore[arg-type]
+
+
+# --- GET /v1/conversations/{conversation_id} (roadmap api 2.2) -------------------------------
+
+
+def _thread() -> Conversation:
+    conversation = _conversation("Trace ids", datetime(2026, 10, 6, 10, 12))
+    conversation.messages = [
+        Message(
+            id=uuid4(),
+            conversation_id=conversation.id,
+            role="user",
+            content="How does trace_id propagation work?",
+            citations=None,
+            created_at=datetime(2026, 10, 6, 10, 11, 0, 500000),
+        ),
+        Message(
+            id=uuid4(),
+            conversation_id=conversation.id,
+            role="assistant",
+            content="The BFF mints it and forwards it.",
+            citations='[{"title": "trace_id — the invariant", "path": "README.md"}]',
+            token_count=42,
+            created_at=datetime(2026, 10, 6, 10, 12),
+        ),
+    ]
+    return conversation
+
+
+def test_read_returns_the_conversation_with_messages_oldest_first(
+    client: TestClient, session: FakeSession
+) -> None:
+    conversation = _thread()
+    session.rows = [conversation]
+
+    res = client.get(f"/v1/conversations/{conversation.id}")
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["id"] == str(conversation.id)
+    assert body["title"] == "Trace ids"
+    assert body["updated_at"].endswith("Z")
+    user, assistant = body["messages"]
+    assert set(user) == {"id", "role", "content", "citations", "created_at"}
+    assert (user["role"], user["citations"]) == ("user", None)
+    assert user["created_at"] == "2026-10-06T10:11:00.500000Z"
+    assert assistant["role"] == "assistant"
+    assert assistant["citations"] == [{"title": "trace_id — the invariant", "path": "README.md"}]
+
+
+def test_read_a_conversation_without_messages(client: TestClient, session: FakeSession) -> None:
+    conversation = _conversation("Empty", datetime(2026, 10, 6))
+    conversation.messages = []
+    session.rows = [conversation]
+
+    res = client.get(f"/v1/conversations/{conversation.id}")
+
+    assert res.status_code == 200
+    assert res.json()["messages"] == []
+
+
+def test_read_an_unknown_id_is_a_404_with_the_error_contract(client: TestClient) -> None:
+    res = client.get(f"/v1/conversations/{uuid4()}", headers={"x-trace-id": INBOUND_TRACE})
+
+    assert res.status_code == 404
+    assert res.json() == {"error": "not_found", "trace_id": INBOUND_TRACE}
+    assert res.headers["x-trace-id"] == INBOUND_TRACE
+
+
+@pytest.mark.parametrize("bad_id", ["not-a-uuid", "123", "00000000-0000-0000-0000"])
+def test_read_a_malformed_id_is_a_422(
+    client: TestClient, session: FakeSession, bad_id: str
+) -> None:
+    res = client.get(f"/v1/conversations/{bad_id}")
+
+    assert res.status_code == 422
+    assert res.json()["error"] == "validation_error"
+    assert session.statements == []  # rejected before any query
+
+
+@pytest.mark.parametrize("stored", ['{"title": "not a list"}', '[{"path": "x.md"}]', "[1, 2]"])
+def test_unreadable_citations_become_null_and_log_no_content(
+    client: TestClient, session: FakeSession, stored: str
+) -> None:
+    conversation = _thread()
+    conversation.messages[1].citations = stored
+    session.rows = [conversation]
+
+    with structlog.testing.capture_logs() as logs:
+        res = client.get(f"/v1/conversations/{conversation.id}")
+
+    assert res.status_code == 200
+    assert res.json()["messages"][1]["citations"] is None
+    [warning] = [e for e in logs if e["event"] == "unreadable citations"]
+    assert stored not in str(warning) and str(conversation.id) not in str(warning)
+
+
+def test_read_loads_messages_explicitly_for_one_id() -> None:
+    session = FakeSession()
+    wanted = uuid4()
+
+    asyncio.run(repo.get_conversation_with_messages(session, wanted))  # type: ignore[arg-type]
+
+    [statement] = session.statements
+    assert "WHERE conversations.id = " in _sql(statement)
+    # messages is lazy="raise" — the read must eager-load it (selectinload), never lazily
+    assert any("messages" in str(option.path) for option in statement._with_options)
+
+
+def test_messages_stored_in_the_same_millisecond_still_read_in_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    frozen = datetime(2026, 10, 6, 12, 0, 0, 123000)
+    monkeypatch.setattr(repo, "utc_now", lambda: frozen)
+    session = FakeSession()
+    conversation = _conversation("Same ms", frozen)
+
+    question = asyncio.run(
+        repo.add_message(session, conversation, role="user", content="q")  # type: ignore[arg-type]
+    )
+    answer = asyncio.run(
+        repo.add_message(session, conversation, role="assistant", content="a")  # type: ignore[arg-type]
+    )
+
+    assert frozen < question.created_at < answer.created_at == conversation.updated_at
+
+
+def test_the_response_role_type_matches_the_database_check() -> None:
+    assert get_args(MessageRole) == ROLES

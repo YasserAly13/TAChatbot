@@ -62,7 +62,7 @@ this as a starting map; read the actual files when you need detail.
   singleton**, `dispose_engine()`), `session.py` (`get_session()` FastAPI dependency — the ONLY
   way routes get a handle on the project DB), `external.py` (second lazy **read-only** engine
   for `EXTERNAL_DATABASE_URL`: `get_external_session()`, non-SELECT statements refused).
-- `routers/conversations.py` — `/v1/conversations` (POST create, GET list; roadmap api 2.1).
+- `routers/conversations.py` — `/v1/conversations` (POST create, GET list — api 2.1; GET `/{conversation_id}` with messages — api 2.2).
   Pydantic request/response models live beside the routes; responses attach UTC to timestamps.
 - `repositories/` — query functions taking an `AsyncSession` (`conversations.py`: create, list,
   get, add message, rename, touch). They add + flush; the route commits (one request = one

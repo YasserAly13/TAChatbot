@@ -14,16 +14,18 @@ counts 2 — never Python code points, or a long emoji title would overflow the 
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.conversation import DEFAULT_TITLE, ROLES, TITLE_MAX_LENGTH, Conversation, Message
 
 DEFAULT_LIST_LIMIT = 50
 MAX_LIST_LIMIT = 100
+_ONE_MS = timedelta(milliseconds=1)
 
 
 def utf16_length(text: str) -> int:
@@ -77,6 +79,23 @@ async def get_conversation(session: AsyncSession, conversation_id: UUID) -> Conv
     return await session.get(Conversation, conversation_id)
 
 
+async def get_conversation_with_messages(
+    session: AsyncSession, conversation_id: UUID
+) -> Conversation | None:
+    """The conversation with its messages loaded oldest first, in one extra SELECT.
+
+    ``messages`` is ``lazy="raise"``, so it must be loaded here explicitly (``selectinload``);
+    touching it later on the async session would fail instead of silently querying.
+    """
+    statement = (
+        select(Conversation)
+        .where(Conversation.id == conversation_id)
+        .options(selectinload(Conversation.messages))
+    )
+    result = await session.execute(statement)
+    return result.scalars().first()
+
+
 async def add_message(
     session: AsyncSession,
     conversation: Conversation,
@@ -92,7 +111,9 @@ async def add_message(
     """
     if role not in ROLES:  # the CHECK constraint would reject it later, as a 500
         raise ValueError(f"role must be one of {ROLES}")
-    now = utc_now()
+    # Strictly later than anything already in this conversation (updated_at moves with every
+    # message), so a question and its answer stored in the same millisecond still read in order.
+    now = max(utc_now(), conversation.updated_at + _ONE_MS)
     message = Message(
         id=uuid4(),
         conversation_id=conversation.id,

@@ -1,6 +1,21 @@
 {
   "components": {
     "schemas": {
+      "Citation": {
+        "properties": {
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": ["title", "path"],
+        "title": "Citation",
+        "type": "object"
+      },
       "ConversationCreate": {
         "properties": {
           "title": {
@@ -18,6 +33,40 @@
           }
         },
         "title": "ConversationCreate",
+        "type": "object"
+      },
+      "ConversationDetail": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "messages": {
+            "description": "Oldest first.",
+            "items": {
+              "$ref": "#/components/schemas/MessageOut"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": ["id", "title", "created_at", "updated_at", "messages"],
+        "title": "ConversationDetail",
         "type": "object"
       },
       "ConversationList": {
@@ -102,6 +151,47 @@
         },
         "required": ["error", "trace_id"],
         "title": "ErrorBody",
+        "type": "object"
+      },
+      "MessageOut": {
+        "properties": {
+          "citations": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Citation"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The documents an assistant answer cites; null for user messages.",
+            "title": "Citations"
+          },
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "enum": ["user", "assistant"],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": ["id", "role", "content", "citations", "created_at"],
+        "title": "MessageOut",
         "type": "object"
       }
     }
@@ -285,6 +375,68 @@
           }
         },
         "summary": "Create Conversation",
+        "tags": ["conversations"]
+      }
+    },
+    "/v1/conversations/{conversation_id}": {
+      "get": {
+        "description": "One conversation with its messages, oldest first. A malformed id is a 422.",
+        "operationId": "read_conversation_v1_conversations__conversation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConversationDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "No such conversation (`not_found`)"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Validation failed (`validation_error`)"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unhandled error (`internal_error`)"
+          }
+        },
+        "summary": "Read Conversation",
         "tags": ["conversations"]
       }
     }
